@@ -1,0 +1,5 @@
+[package]
+name = "routefinder"
+version = "0.1.0"
+authors = ["Jacob Rothstein <hi@jbr.me>"]
+edition = "2018"
