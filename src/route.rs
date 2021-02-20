@@ -138,7 +138,7 @@ impl TryFrom<&'static str> for RouteDefinition<'static> {
             .try_fold(vec![], |mut acc, section| {
                 let segment =                 match (section.chars().next(), section.len()) {
                     (Some('*'), 1) => Some(Segment::Wildcard),
-                    (Some('*'), _) => return Err(format!("since there can only be one wildcard, it doesn't need a name. replace \"*{}\" with \"*\"", section)),
+                    (Some('*'), _) => return Err(format!("since there can only be one wildcard, it doesn't need a name. replace `{}` with `*`", section)),
                     (Some(':'), 1) => return Err(String::from("params must be named")),
                     (Some(':'), _) => Some(Segment::Param(&section[1..])),
                     (None, 0) => None,
