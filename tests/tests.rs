@@ -10,6 +10,7 @@ fn it_works() -> Result {
     router.add("/hey/:world", 4)?;
     router.add("/hey/earth", 5)?;
     router.add("/:greeting/:world/*", 6)?;
+
     let matches = router.matches("/hello");
     assert_eq!(matches.len(), 3);
     assert_eq!(router.matches("/").len(), 1);
@@ -38,15 +39,16 @@ fn it_works() -> Result {
 #[test]
 fn several_params() -> Result {
     let mut router = Router::new();
-    router.add(":anything/specific/:anything", 4)?;
     router.add("/:a", 1)?;
     router.add("/:a/:b", 2)?;
     router.add("/:a/:b/:c", 3)?;
-
+    router.add("/:param1/specific/:param2", 4)?;
     assert_eq!(router.best_match("/hi").unwrap().handler(), &1);
     assert_eq!(router.best_match("/hi/there").unwrap().handler(), &2);
     assert_eq!(router.best_match("/hi/there/hey").unwrap().handler(), &3);
+
     assert_eq!(router.matches("/hi/specific/anything").len(), 2);
+
     assert_eq!(
         router
             .best_match("/hi/specific/anything")

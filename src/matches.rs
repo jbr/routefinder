@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::BTreeSet;
 use std::ops::Deref;
 
@@ -21,16 +22,12 @@ impl<'router, 'path, T> Matches<'router, 'path, T> {
         self.matches.len()
     }
 
-    pub fn best(&self) -> Option<&Match<'router, 'path, T>> {
-        self.matches.iter().last()
-    }
-
-    pub fn for_routes_and_path(routes: &'router [Route<T>], path: &'path str) -> Self {
+    pub fn for_routes_and_path(
+        routes: impl Iterator<Item = &'router Route<T>>,
+        path: &'path str,
+    ) -> Self {
         Self {
-            matches: routes
-                .iter()
-                .filter_map(|route| route.is_match(path))
-                .collect(),
+            matches: routes.filter_map(|route| route.is_match(path)).collect(),
         }
     }
 }
@@ -98,19 +95,13 @@ impl<'router, 'path, T> PartialEq for Match<'router, 'path, T> {
 impl<'router, 'path, T> Eq for Match<'router, 'path, T> {}
 
 impl<'router, 'path, T> PartialOrd for Match<'router, 'path, T> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl<'router, 'path, T> Ord for Match<'router, 'path, T> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.route
-            .segments()
-            .iter()
-            .zip(other.route.segments())
-            .map(|(mine, theirs)| mine.cmp(theirs))
-            .find(|c| *c != std::cmp::Ordering::Equal)
-            .unwrap_or(std::cmp::Ordering::Equal)
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.route.cmp(&other.route)
     }
 }

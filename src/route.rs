@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
 
 use crate::{Match, Segment};
@@ -14,6 +15,18 @@ impl<T> PartialEq for Route<T> {
 }
 
 impl<T> Eq for Route<T> {}
+
+impl<T> PartialOrd for Route<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<T> Ord for Route<T> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.definition.cmp(&other.definition)
+    }
+}
 
 impl<T> Route<T> {
     pub(crate) fn new<R>(
@@ -142,5 +155,25 @@ impl TryFrom<&'static str> for RouteDefinition<'static> {
             source: s,
             segments,
         })
+    }
+}
+
+impl<'s> PartialOrd for RouteDefinition<'s> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<'s> Ord for RouteDefinition<'s> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.segments
+            .iter()
+            .zip(&other.segments)
+            .map(|(mine, theirs)| mine.cmp(theirs))
+            .chain(std::iter::once_with(|| {
+                other.segments.len().cmp(&self.segments.len())
+            }))
+            .find(|c| *c != Ordering::Equal)
+            .unwrap_or_else(|| Ordering::Less)
     }
 }
