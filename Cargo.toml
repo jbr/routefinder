@@ -3,6 +3,13 @@ name = "routefinder"
 version = "0.1.0"
 authors = ["Jacob Rothstein <hi@jbr.me>"]
 edition = "2018"
+description = "router"
+readme = "README.md"
+repository = "https://github.com/jbr/routefinder"
+documentation = "https://docs.rs/routefinder"
+license = "MIT OR Apache-2.0"
+keywords = ["router"]
+categories = ["web-programming::http-server", "web-programming"]
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["html_reports"] }
