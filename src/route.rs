@@ -125,11 +125,20 @@ pub struct RouteSpec {
     segments: Vec<Segment>,
 }
 
+impl RouteSpec {
+    pub fn new(source: &str, segments: Vec<Segment>) -> Self {
+        Self {
+            source: String::from(source),
+            segments,
+        }
+    }
+}
+
 impl FromStr for RouteSpec {
     type Err = String;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let segments = s
+    fn from_str(source: &str) -> Result<Self, Self::Err> {
+        let segments = source
             .trim_start_matches('/')
             .trim_end_matches('/')
             .split('/')
@@ -149,10 +158,7 @@ impl FromStr for RouteSpec {
                 Ok(acc)
             })?;
 
-        Ok(RouteSpec {
-            source: String::from(s),
-            segments,
-        })
+        Ok(RouteSpec::new(source, segments))
     }
 }
 
