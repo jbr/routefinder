@@ -20,10 +20,6 @@ impl<'router, 'path, T> Deref for Matches<'router, 'path, T> {
 }
 
 impl<'router, 'path, T> Matches<'router, 'path, T> {
-    pub fn len(&self) -> usize {
-        self.matches.len()
-    }
-
     pub fn for_routes_and_path(
         routes: impl Iterator<Item = &'router Route<T>>,
         path: &'path str,

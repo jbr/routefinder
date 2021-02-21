@@ -201,6 +201,6 @@ impl Ord for RouteSpec {
                 other.segments.len().cmp(&self.segments.len())
             }))
             .find(|c| *c != Ordering::Equal)
-            .unwrap_or_else(|| Ordering::Less)
+            .unwrap_or(Ordering::Less)
     }
 }

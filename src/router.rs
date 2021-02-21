@@ -37,8 +37,8 @@ impl<T> Router<T> {
     /// ```rust
     /// let mut router = routefinder::Router::new();
     /// assert!(router.add("*named_wildcard", ()).is_err());
-    /// assert!(router.add("*").is_ok());
-    /// assert!(router.add(format!("/dynamic/{}", "route")).is_ok());
+    /// assert!(router.add("*", ()).is_ok());
+    /// assert!(router.add(format!("/dynamic/{}", "route"), ()).is_ok());
     /// ```
     pub fn add<R>(&mut self, route: R, handler: T) -> Result<(), <R as TryInto<RouteSpec>>::Error>
     where
@@ -57,10 +57,10 @@ impl<T> Router<T> {
     ///
     /// ```rust
     /// let mut router = routefinder::Router::new();
-    /// router.add("*").unwrap();
-    /// router.add("/:param").unwrap();
-    /// router.add("/hello").unwrap();
-    /// assert!(!matches.is_empty());
+    /// router.add("*", ()).unwrap();
+    /// router.add("/:param", ()).unwrap();
+    /// router.add("/hello", ()).unwrap();
+    /// assert!(!router.matches("/").is_empty());
     /// assert_eq!(router.matches("/hello").len(), 3);
     /// assert_eq!(router.matches("/hey").len(), 2);
     /// assert_eq!(router.matches("/hey/there").len(), 1);
