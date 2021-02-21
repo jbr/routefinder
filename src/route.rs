@@ -5,7 +5,7 @@ use std::str::FromStr;
 use crate::{Match, Segment};
 #[derive(Debug)]
 pub struct Route<T> {
-    definition: RouteDefinition,
+    definition: RouteSpec,
     handler: T,
 }
 
@@ -30,12 +30,9 @@ impl<T> Ord for Route<T> {
 }
 
 impl<T> Route<T> {
-    pub(crate) fn new<R>(
-        route: R,
-        handler: T,
-    ) -> Result<Self, <R as TryInto<RouteDefinition>>::Error>
+    pub(crate) fn new<R>(route: R, handler: T) -> Result<Self, <R as TryInto<RouteSpec>>::Error>
     where
-        R: TryInto<RouteDefinition>,
+        R: TryInto<RouteSpec>,
     {
         Ok(Self {
             definition: route.try_into()?,
@@ -43,7 +40,7 @@ impl<T> Route<T> {
         })
     }
 
-    pub fn definition(&self) -> &RouteDefinition {
+    pub fn definition(&self) -> &RouteSpec {
         &self.definition
     }
 
@@ -123,12 +120,12 @@ impl<T> Route<T> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct RouteDefinition {
+pub struct RouteSpec {
     source: String,
     segments: Vec<Segment>,
 }
 
-impl FromStr for RouteDefinition {
+impl FromStr for RouteSpec {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -152,14 +149,14 @@ impl FromStr for RouteDefinition {
                 Ok(acc)
             })?;
 
-        Ok(RouteDefinition {
+        Ok(RouteSpec {
             source: String::from(s),
             segments,
         })
     }
 }
 
-impl TryFrom<&str> for RouteDefinition {
+impl TryFrom<&str> for RouteSpec {
     type Error = String;
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
@@ -167,20 +164,20 @@ impl TryFrom<&str> for RouteDefinition {
     }
 }
 
-impl TryFrom<String> for RouteDefinition {
+impl TryFrom<String> for RouteSpec {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         s.parse()
     }
 }
 
-impl PartialOrd for RouteDefinition {
+impl PartialOrd for RouteSpec {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for RouteDefinition {
+impl Ord for RouteSpec {
     fn cmp(&self, other: &Self) -> Ordering {
         self.segments
             .iter()

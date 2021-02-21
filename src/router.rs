@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use std::convert::TryInto;
 
-use crate::{Match, Matches, Route, RouteDefinition};
+use crate::{Match, Matches, Route, RouteSpec};
 
 #[derive(Debug)]
 pub struct Router<T> {
@@ -21,13 +21,9 @@ impl<T> Router<T> {
         Self::default()
     }
 
-    pub fn add<R>(
-        &mut self,
-        route: R,
-        handler: T,
-    ) -> Result<(), <R as TryInto<RouteDefinition>>::Error>
+    pub fn add<R>(&mut self, route: R, handler: T) -> Result<(), <R as TryInto<RouteSpec>>::Error>
     where
-        R: TryInto<RouteDefinition>,
+        R: TryInto<RouteSpec>,
     {
         self.routes.insert(Route::new(route, handler)?);
         Ok(())
