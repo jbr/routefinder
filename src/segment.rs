@@ -1,7 +1,8 @@
-/// the internal representation of a parsed component of a route as an
-/// example, `/hello/:planet/*` would be represented as the following
-/// sequence `[Exact("hello"), Slash, Param("planet"), Slash,
-/// Wildcard]`
+/// the internal representation of a parsed component of a route
+///
+/// as an example, `/hello/:planet/*` would be represented as the
+/// following sequence `[Exact("hello"), Slash, Param("planet"),
+/// Slash, Wildcard]`
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Segment {
     /// represented by a / in the route spec and matching one /
