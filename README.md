@@ -1,7 +1,7 @@
 # routefinder
 
 * [API Docs][docs] [![docs.rs docs][docs-badge]][docs]
-* [Releases][releases] [![crates.io version][version-badge]][lib-rs]
+* [Releases][releases] [![crates.io version][version-badge]][crate]
 * [Contributing][contributing]
 * [CI ![CI][ci-badge]][ci]
 * [API docs for main][main-docs]
@@ -11,7 +11,7 @@
 [releases]: https://github.com/jbr/routefinder/releases
 [docs]: https://docs.rs/routefinder
 [contributing]: https://github.com/jbr/routefinder/blob/main/.github/CONTRIBUTING.md
-[lib-rs]: https://crates.io/crate/routefinder
+[crate]: https://crates.io/crates/routefinder
 [docs-badge]: https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square
 [version-badge]: https://img.shields.io/crates/v/routefinder.svg?style=flat-square
 [main-docs]: https://jbr.github.io/routefinder/routefinder/
