@@ -4,6 +4,8 @@ use std::ops::Deref;
 
 use crate::{Captures, Route, Segment};
 
+/// A set of all [`Match`]es. Most likely, you'll want to dereference
+/// this to its inner [`std::collections::BTreeSet`].
 #[derive(Debug)]
 pub struct Matches<'router, 'path, T> {
     matches: BTreeSet<Match<'router, 'path, T>>,
@@ -32,6 +34,9 @@ impl<'router, 'path, T> Matches<'router, 'path, T> {
     }
 }
 
+/// This struct represents the output of a successful application of a
+/// [`Route`] to a str path, as well as references to any captures
+/// such as params and wildcards.
 #[derive(Debug)]
 pub struct Match<'router, 'path, T> {
     path: &'path str,
@@ -52,14 +57,12 @@ impl<'router, 'path, T> Match<'router, 'path, T> {
         }
     }
 
+    /// Returns a reference to the handler associated with this route
     pub fn handler(&self) -> &'router T {
         self.route.handler()
     }
 
-    pub fn into_route(self) -> &'router Route<T> {
-        self.route
-    }
-
+    /// Returns the [`Captures`] for this match
     pub fn captures(&self) -> Captures {
         self.route
             .segments()

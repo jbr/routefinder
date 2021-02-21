@@ -3,6 +3,8 @@ use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
 
 use crate::{Match, Segment};
+
+/// A parsed [`RouteSpec`] and associated handler
 #[derive(Debug)]
 pub struct Route<T> {
     definition: RouteSpec,
@@ -40,17 +42,22 @@ impl<T> Route<T> {
         })
     }
 
+    /// the [`RouteSpec`] for this [`Route`]
     pub fn definition(&self) -> &RouteSpec {
         &self.definition
     }
 
+    /// borrow whatever handler T is contained in this route
     pub fn handler(&self) -> &T {
         &self.handler
     }
+
+    /// a slice of [`RouteSpec`] [`Segments`] that represents this route
     pub fn segments(&self) -> &[Segment] {
         &self.definition.segments[..]
     }
 
+    /// performs the test of whether this route matches a given path str
     pub fn is_match<'a, 'b>(&'a self, path: &'b str) -> Option<Match<'a, 'b, T>> {
         let mut p = path.trim_start_matches('/').trim_end_matches('/');
         let mut captures = vec![];
@@ -119,6 +126,7 @@ impl<T> Route<T> {
     }
 }
 
+/// the internal representation of a route, containing both the source string (or unique description) and a Vec of [`Segment`]s
 #[derive(Debug, PartialEq, Eq)]
 pub struct RouteSpec {
     source: String,
