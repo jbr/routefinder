@@ -11,6 +11,18 @@ fn it_works() -> Result {
     router.add("/hey/earth", 5)?;
     router.add("/:greeting/:world/*", 6)?;
 
+    assert_eq!(
+        &format!("{:#?}", &router),
+        r#"{
+    Route(/*),
+    Route(/:greeting/:world/*),
+    Route(/:greeting),
+    Route(/hey/:world),
+    Route(/hey/earth),
+    Route(/hello),
+}"#
+    );
+
     let matches = router.matches("/hello");
     assert_eq!(matches.len(), 3);
     assert_eq!(router.matches("/").len(), 1);

@@ -5,10 +5,15 @@ use std::str::FromStr;
 use crate::{Match, Segment};
 
 /// A parsed [`RouteSpec`] and associated handler
-#[derive(Debug)]
 pub struct Route<T> {
     definition: RouteSpec,
     handler: T,
+}
+
+impl<T> std::fmt::Debug for Route<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("Route({:?})", &self.definition))
+    }
 }
 
 impl<T> PartialEq for Route<T> {
@@ -126,11 +131,34 @@ impl<T> Route<T> {
     }
 }
 
-/// the internal representation of a route, containing both the source string (or unique description) and a Vec of [`Segment`]s
-#[derive(Debug, PartialEq, Eq)]
+/// the internal representation of a route, containing both the source
+/// string (or unique description) and a Vec of [`Segment`]s
+#[derive(PartialEq, Eq)]
 pub struct RouteSpec {
     source: String,
     segments: Vec<Segment>,
+}
+
+impl std::fmt::Display for RouteSpec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("/")?;
+        for segment in &self.segments {
+            match segment {
+                Segment::Slash => f.write_str("/")?,
+                Segment::Dot => f.write_str(".")?,
+                Segment::Exact(s) => f.write_str(&s)?,
+                Segment::Param(p) => f.write_fmt(format_args!(":{}", p))?,
+                Segment::Wildcard => f.write_str("*")?,
+            };
+        }
+        Ok(())
+    }
+}
+
+impl std::fmt::Debug for RouteSpec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}", self))
+    }
 }
 
 impl RouteSpec {

@@ -7,9 +7,14 @@ use crate::{Match, Matches, Route, RouteSpec};
 /// to a given request path, and any handler T that is associated with
 /// each route
 
-#[derive(Debug)]
 pub struct Router<T> {
     routes: BTreeSet<Route<T>>,
+}
+
+impl<T> std::fmt::Debug for Router<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_set().entries(self.routes.iter()).finish()
+    }
 }
 
 impl<T> Default for Router<T> {
