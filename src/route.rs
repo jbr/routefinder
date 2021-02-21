@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
+use std::str::FromStr;
 
 use crate::{Match, Segment};
 #[derive(Debug)]
@@ -127,10 +128,10 @@ pub struct RouteDefinition {
     segments: Vec<Segment>,
 }
 
-impl TryFrom<&str> for RouteDefinition {
-    type Error = String;
+impl FromStr for RouteDefinition {
+    type Err = String;
 
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         let segments = s
             .trim_start_matches('/')
             .trim_end_matches('/')
@@ -155,6 +156,21 @@ impl TryFrom<&str> for RouteDefinition {
             source: String::from(s),
             segments,
         })
+    }
+}
+
+impl TryFrom<&str> for RouteDefinition {
+    type Error = String;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        s.parse()
+    }
+}
+
+impl TryFrom<String> for RouteDefinition {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        s.parse()
     }
 }
 
