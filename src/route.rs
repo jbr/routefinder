@@ -4,7 +4,7 @@ use std::convert::{TryFrom, TryInto};
 use crate::{Match, Segment};
 #[derive(Debug)]
 pub struct Route<T> {
-    definition: RouteDefinition<'static>,
+    definition: RouteDefinition,
     handler: T,
 }
 
@@ -32,9 +32,9 @@ impl<T> Route<T> {
     pub(crate) fn new<R>(
         route: R,
         handler: T,
-    ) -> Result<Self, <R as TryInto<RouteDefinition<'static>>>::Error>
+    ) -> Result<Self, <R as TryInto<RouteDefinition>>::Error>
     where
-        R: TryInto<RouteDefinition<'static>>,
+        R: TryInto<RouteDefinition>,
     {
         Ok(Self {
             definition: route.try_into()?,
@@ -59,9 +59,9 @@ impl<T> Route<T> {
 
         let mut peek = self.definition.segments.iter().peekable();
         while let Some(segment) = peek.next() {
-            p = match *segment {
+            p = match &*segment {
                 Segment::Exact(e) => {
-                    if p.starts_with(e) {
+                    if p.starts_with(&*e) {
                         &p[e.len()..]
                     } else {
                         return None;
@@ -122,15 +122,15 @@ impl<T> Route<T> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct RouteDefinition<'s> {
-    source: &'s str,
-    segments: Vec<Segment<'s>>,
+pub struct RouteDefinition {
+    source: String,
+    segments: Vec<Segment>,
 }
 
-impl TryFrom<&'static str> for RouteDefinition<'static> {
+impl TryFrom<&str> for RouteDefinition {
     type Error = String;
 
-    fn try_from(s: &'static str) -> Result<Self, Self::Error> {
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
         let segments = s
             .trim_start_matches('/')
             .trim_end_matches('/')
@@ -140,9 +140,9 @@ impl TryFrom<&'static str> for RouteDefinition<'static> {
                     (Some('*'), 1) => Some(Segment::Wildcard),
                     (Some('*'), _) => return Err(format!("since there can only be one wildcard, it doesn't need a name. replace `{}` with `*`", section)),
                     (Some(':'), 1) => return Err(String::from("params must be named")),
-                    (Some(':'), _) => Some(Segment::Param(&section[1..])),
+                    (Some(':'), _) => Some(Segment::Param(String::from(&section[1..]))),
                     (None, 0) => None,
-                    (_, _) => Some(Segment::Exact(section)),
+                    (_, _) => Some(Segment::Exact(String::from(section))),
                 };
                 if let Some(segment) = segment {
                     if !acc.is_empty() {acc.push(Segment::Slash); }
@@ -152,19 +152,19 @@ impl TryFrom<&'static str> for RouteDefinition<'static> {
             })?;
 
         Ok(RouteDefinition {
-            source: s,
+            source: String::from(s),
             segments,
         })
     }
 }
 
-impl<'s> PartialOrd for RouteDefinition<'s> {
+impl PartialOrd for RouteDefinition {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<'s> Ord for RouteDefinition<'s> {
+impl Ord for RouteDefinition {
     fn cmp(&self, other: &Self) -> Ordering {
         self.segments
             .iter()

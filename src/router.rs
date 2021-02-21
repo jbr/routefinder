@@ -25,9 +25,9 @@ impl<T> Router<T> {
         &mut self,
         route: R,
         handler: T,
-    ) -> Result<(), <R as TryInto<RouteDefinition<'static>>>::Error>
+    ) -> Result<(), <R as TryInto<RouteDefinition>>::Error>
     where
-        R: TryInto<RouteDefinition<'static>>,
+        R: TryInto<RouteDefinition>,
     {
         self.routes.insert(Route::new(route, handler)?);
         Ok(())

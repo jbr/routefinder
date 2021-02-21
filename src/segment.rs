@@ -1,18 +1,18 @@
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Segment<'s> {
+pub enum Segment {
     Slash,
     Dot,
-    Exact(&'s str),
-    Param(&'s str),
+    Exact(String),
+    Param(String),
     Wildcard,
 }
-impl PartialOrd for Segment<'_> {
+impl PartialOrd for Segment {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for Segment<'_> {
+impl Ord for Segment {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         use std::cmp::Ordering::*;
         use Segment::*;

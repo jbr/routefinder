@@ -70,9 +70,7 @@ impl<'router, 'path, T> Match<'router, 'path, T> {
                 Captures::default(),
                 |mut captures, (segment, capture)| match segment {
                     Segment::Param(name) => {
-                        captures
-                            .0
-                            .push((String::from(*name), String::from(*capture)));
+                        captures.0.push((name.clone(), String::from(*capture)));
                         captures
                     }
 
