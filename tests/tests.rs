@@ -115,7 +115,7 @@ fn captures() -> Result {
 }
 
 #[test]
-fn errors_on_add() -> Result {
+fn errors_on_add() {
     let mut router = Router::new();
 
     assert!(router
@@ -124,6 +124,4 @@ fn errors_on_add() -> Result {
         .contains("replace `*named_star` with `*`"));
 
     assert_eq!(router.add(":", ()).unwrap_err(), "params must be named");
-
-    Ok(())
 }
