@@ -13,7 +13,7 @@ pub enum Segment {
     /// exactly that text
     Exact(String),
     /// represented by :name, where name is how the capture will be
-    /// available in [`Captures`]. Param captures up to the next slash
+    /// available in [`Captures`][crate::Captures]. Param captures up to the next slash
     /// or dot, whichever is next in the spec.
     Param(String),
     /// represented by * in the spec, this will capture everything up

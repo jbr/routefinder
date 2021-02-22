@@ -57,7 +57,7 @@ impl<T> Route<T> {
         &self.handler
     }
 
-    /// a slice of [`RouteSpec`] [`Segments`] that represents this route
+    /// a slice of [`RouteSpec`] [`Segment`]s that represents this route
     pub fn segments(&self) -> &[Segment] {
         &self.definition.segments[..]
     }

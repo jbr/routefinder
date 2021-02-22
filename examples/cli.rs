@@ -37,7 +37,7 @@ pub fn main() -> Result<(), String> {
             "\n\ninput: {}\nbest match: {}\noutput: {}\n\n",
             &path,
             m.route(),
-            (m.handler())(m.captures()),
+            m(m.captures()),
         );
     }
 

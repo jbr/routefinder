@@ -53,12 +53,35 @@ impl<T> Router<T> {
         Ok(())
     }
 
+    /// Returns the single best route match as defined by the sorting
+    /// rules. To compare any two routes, step through each
+    /// [`Segment`][crate::Segment] and find the first pair that are not equal,
+    /// according to: `Exact > Param > Wildcard > (dots and slashes)`
+    /// As a result, `/hello` > `/:param` > `/*`.  Because we can sort
+    /// the routes before encountering a path, we evaluate them from
+    /// highest to lowest weight and an early return as soon as we
+    /// find a match.
+    ///
+    /// ```rust
+    /// let mut router = routefinder::Router::new();
+    /// router.add("*", 0).unwrap();
+    /// router.add("/:param", 1).unwrap();
+    /// router.add("/hello", 2).unwrap();
+    /// assert_eq!(*router.best_match("/hello").unwrap(), 2);
+    /// assert_eq!(*router.best_match("/hey").unwrap(), 1);
+    /// assert_eq!(router.best_match("/hey").unwrap().captures().get("param"), Some("hey"));
+    /// assert_eq!(*router.best_match("/hey/there").unwrap(), 0);
+    /// assert_eq!(*router.best_match("/").unwrap(), 0);
+    /// ```
+    pub fn best_match<'a, 'b>(&'a self, path: &'b str) -> Option<Match<'a, 'b, T>> {
+        self.routes.iter().rev().find_map(|r| r.is_match(path))
+    }
+
     /// Returns _all_ of the matching routes for a given path. This is
     /// probably not what you want, as [`Router::best_match`] is more
     /// efficient. The primary reason you'd want to use `matches` is
     /// to implement different route precedence rules or for
-    /// testing. See [`Matches`] for more details. Note that `Matches`
-    /// can be empty.
+    /// testing.
     ///
     /// ```rust
     /// let mut router = routefinder::Router::new();
@@ -75,17 +98,5 @@ impl<T> Router<T> {
             .iter()
             .filter_map(|route| route.is_match(path))
             .collect()
-    }
-
-    /// Returns the single best route match as defined by the sorting
-    /// rules. To compare any two routes, step through each
-    /// [`Segment`] and find the first pair that are not equal,
-    /// according to: `Exact > Param > Wildcard > (dots and slashes)`
-    /// As a result, `/hello` > `/:param` > `/*`.  Because we can sort
-    /// the routes before encountering a path, we evaluate them from
-    /// highest to lowest weight and an early return as soon as we
-    /// find a match.
-    pub fn best_match<'a, 'b>(&'a self, path: &'b str) -> Option<Match<'a, 'b, T>> {
-        self.routes.iter().rev().find_map(|r| r.is_match(path))
     }
 }

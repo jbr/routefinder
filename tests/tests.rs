@@ -26,7 +26,7 @@ fn it_works() -> Result {
     let matches = router.matches("/hello");
     assert_eq!(matches.len(), 3);
     assert_eq!(router.matches("/").len(), 1);
-    assert_eq!(*router.best_match("/hey/earth").unwrap().handler(), 5);
+    assert_eq!(*router.best_match("/hey/earth").unwrap(), 5);
 
     assert_eq!(
         router
@@ -39,7 +39,7 @@ fn it_works() -> Result {
 
     let m = router.best_match("/hey/earth/wildcard/stuff").unwrap();
 
-    assert_eq!(*m.handler(), 6);
+    assert_eq!(*m, 6);
     let captures = m.captures();
     assert_eq!(captures.wildcard(), Some("wildcard/stuff"));
     assert_eq!(captures.get("greeting"), Some("hey"));
@@ -55,19 +55,13 @@ fn several_params() -> Result {
     router.add("/:a/:b", 2)?;
     router.add("/:a/:b/:c", 3)?;
     router.add("/:param1/specific/:param2", 4)?;
-    assert_eq!(router.best_match("/hi").unwrap().handler(), &1);
-    assert_eq!(router.best_match("/hi/there").unwrap().handler(), &2);
-    assert_eq!(router.best_match("/hi/there/hey").unwrap().handler(), &3);
+    assert_eq!(*router.best_match("/hi").unwrap(), 1);
+    assert_eq!(*router.best_match("/hi/there").unwrap(), 2);
+    assert_eq!(*router.best_match("/hi/there/hey").unwrap(), 3);
 
     assert_eq!(router.matches("/hi/specific/anything").len(), 2);
 
-    assert_eq!(
-        router
-            .best_match("/hi/specific/anything")
-            .unwrap()
-            .handler(),
-        &4
-    );
+    assert_eq!(*router.best_match("/hi/specific/anything").unwrap(), 4);
 
     assert!(router.matches("/").is_empty());
     assert!(router.matches("/a/b/c/d").is_empty());
