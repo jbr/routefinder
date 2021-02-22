@@ -1,5 +1,9 @@
 # routefinder
 
+To get started, see [the api docs][docs] or play with the included
+example by cloning this repository and running `cargo run --example
+cli /hello/earth`
+
 * [API Docs][docs] [![docs.rs docs][docs-badge]][docs]
 * [Releases][releases] [![crates.io version][version-badge]][crate]
 * [Contributing][contributing]
