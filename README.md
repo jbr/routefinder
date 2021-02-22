@@ -1,7 +1,8 @@
 # routefinder
 
-To get started, see [the api docs][docs] or play with the included
-example by cloning this repository and running
+To get started, see [the api docs][docs] or play with [the crate
+example](https://github.com/jbr/routefinder/blob/main/examples/cli.rs)
+by cloning this repository and running
 ```
 cargo run --example cli /hello/earth
 ```
