@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use std::convert::TryInto;
 
-use crate::{Match, Matches, Route, RouteSpec};
+use crate::{Match, Route, RouteSpec};
 
 /// a router represents an ordered set of routes which can be applied
 /// to a given request path, and any handler T that is associated with
@@ -70,8 +70,11 @@ impl<T> Router<T> {
     /// assert_eq!(router.matches("/hey").len(), 2);
     /// assert_eq!(router.matches("/hey/there").len(), 1);
     /// ```
-    pub fn matches<'a, 'b>(&'a self, path: &'b str) -> Matches<'a, 'b, T> {
-        Matches::for_routes_and_path(self.routes.iter(), path)
+    pub fn matches<'a, 'b>(&'a self, path: &'b str) -> Vec<Match<'a, 'b, T>> {
+        self.routes
+            .iter()
+            .filter_map(|route| route.is_match(path))
+            .collect()
     }
 
     /// Returns the single best route match as defined by the sorting

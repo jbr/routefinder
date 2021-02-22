@@ -7,13 +7,13 @@
 )]
 
 mod captures;
-mod matches;
+mod r#match;
 mod route;
 mod router;
 mod segment;
 
 pub use captures::Captures;
-pub use matches::{Match, Matches};
+pub use r#match::Match;
 pub use route::{Route, RouteSpec};
 pub use router::Router;
 pub use segment::Segment;

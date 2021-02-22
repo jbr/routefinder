@@ -1,34 +1,6 @@
 use std::cmp::Ordering;
-use std::collections::BTreeSet;
-use std::ops::Deref;
 
 use crate::{Captures, Route, Segment};
-
-/// A set of all [`Match`]es. Most likely, you'll want to dereference
-/// this to its inner [`std::collections::BTreeSet`].
-#[derive(Debug)]
-pub struct Matches<'router, 'path, T> {
-    matches: BTreeSet<Match<'router, 'path, T>>,
-}
-
-impl<'router, 'path, T> Deref for Matches<'router, 'path, T> {
-    type Target = BTreeSet<Match<'router, 'path, T>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.matches
-    }
-}
-
-impl<'router, 'path, T> Matches<'router, 'path, T> {
-    pub fn for_routes_and_path(
-        routes: impl Iterator<Item = &'router Route<T>>,
-        path: &'path str,
-    ) -> Self {
-        Self {
-            matches: routes.filter_map(|route| route.is_match(path)).collect(),
-        }
-    }
-}
 
 /// This struct represents the output of a successful application of a
 /// [`Route`] to a str path, as well as references to any captures
