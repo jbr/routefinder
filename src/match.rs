@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use crate::{Captures, Route, Segment};
+use crate::{Captures, Route, RouteSpec, Segment};
 
 /// This struct represents the output of a successful application of a
 /// [`Route`] to a str path, as well as references to any captures
@@ -28,6 +28,10 @@ impl<'router, 'path, T> Match<'router, 'path, T> {
     /// Returns a reference to the handler associated with this route
     pub fn handler(&self) -> &'router T {
         self.route.handler()
+    }
+
+    pub fn route(&self) -> &'router RouteSpec {
+        self.route.definition()
     }
 
     /// Returns the [`Captures`] for this match
