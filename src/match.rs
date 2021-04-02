@@ -37,7 +37,7 @@ impl<'router, 'path, T> Match<'router, 'path, T> {
     }
 
     /// Returns the [`Captures`] for this match
-    pub fn captures(&self) -> Captures {
+    pub fn captures(&self) -> Captures<'router, 'path> {
         self.route
             .segments()
             .iter()
@@ -47,12 +47,12 @@ impl<'router, 'path, T> Match<'router, 'path, T> {
                 Captures::default(),
                 |mut captures, (segment, capture)| match segment {
                     Segment::Param(name) => {
-                        captures.push(Capture::new(name.clone(), String::from(*capture)));
+                        captures.push(Capture::new(name, *capture));
                         captures
                     }
 
                     Segment::Wildcard => {
-                        captures.set_wildcard(String::from(*capture));
+                        captures.set_wildcard(*capture);
                         captures
                     }
                     _ => captures,

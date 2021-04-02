@@ -3,12 +3,13 @@ use std::ops::Deref;
 use crate::{Captures, Route, Segment};
 
 #[derive(Debug, Clone, Copy)]
-pub struct ReverseMatch<'captures, 'route, T> {
+pub struct ReverseMatch<'keys, 'values, 'captures, 'route, T> {
     route: &'route Route<T>,
-    captures: &'captures Captures,
+    captures: &'captures Captures<'keys, 'values>,
 }
-impl<'captures, 'route, T> ReverseMatch<'captures, 'route, T> {
-    pub fn new(captures: &'captures Captures, route: &'route Route<T>) -> Self {
+
+impl<'keys, 'values, 'captures, 'route, T> ReverseMatch<'keys, 'values, 'captures, 'route, T> {
+    pub fn new(captures: &'captures Captures<'keys, 'values>, route: &'route Route<T>) -> Self {
         Self { route, captures }
     }
 
@@ -21,7 +22,9 @@ impl<'captures, 'route, T> ReverseMatch<'captures, 'route, T> {
     }
 }
 
-impl<'captures, 'route, T> std::fmt::Display for ReverseMatch<'captures, 'route, T> {
+impl<'keys, 'values, 'captures, 'route, T> std::fmt::Display
+    for ReverseMatch<'keys, 'values, 'captures, 'route, T>
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("/")?;
         for segment in self.route.segments() {
@@ -37,7 +40,9 @@ impl<'captures, 'route, T> std::fmt::Display for ReverseMatch<'captures, 'route,
     }
 }
 
-impl<'captures, 'route, T> Deref for ReverseMatch<'captures, 'route, T> {
+impl<'keys, 'values, 'captures, 'route, T> Deref
+    for ReverseMatch<'keys, 'values, 'captures, 'route, T>
+{
     type Target = T;
 
     fn deref(&self) -> &Self::Target {

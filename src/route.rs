@@ -130,10 +130,10 @@ impl<T> Route<T> {
         }
     }
 
-    pub fn reverse_match<'route, 'captures>(
+    pub fn reverse_match<'keys, 'values, 'route, 'captures>(
         &'route self,
-        captures: &'captures crate::Captures,
-    ) -> Option<ReverseMatch<'captures, 'route, T>> {
+        captures: &'captures crate::Captures<'keys, 'values>,
+    ) -> Option<ReverseMatch<'keys, 'values, 'captures, 'route, T>> {
         let param_names = self
             .segments()
             .iter()
