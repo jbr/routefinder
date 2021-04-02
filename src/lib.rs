@@ -30,7 +30,7 @@
 //! // reverse lookup
 //! let captures = Captures::from(vec![("world", "jupiter")]);
 //! let reverse_match = router.best_reverse_match(&captures).unwrap();
-//! assert_eq!(*reverse_match, 5);
+//! assert_eq!(*reverse_match, 4);
 //! assert_eq!(reverse_match.to_string(), "/hey/jupiter");
 //! # Ok(()) }
 //! ```
