@@ -189,5 +189,13 @@ fn reverse_lookup() -> Result {
     );
     assert_eq!(*reversed_match, 6);
 
+    // round trip
+
+    let input = "/howdy/mars/wildcard/stuff";
+    let captures = router.best_match(input).unwrap().captures();
+    let reversed = router.best_reverse_match(&captures).unwrap();
+    assert_eq!(reversed.to_string(), input);
+    assert_eq!(*reversed, 6);
+
     Ok(())
 }
