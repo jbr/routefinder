@@ -74,24 +74,10 @@ impl<T> Router<T> {
     /// assert_eq!(*router.best_match("/").unwrap(), 0);
     /// ```
     pub fn best_match<'a, 'b>(&'a self, path: &'b str) -> Option<Match<'a, 'b, T>> {
-        self.routes.iter().rev().find_map(|r| r.is_match(path))
-    }
-
-    pub fn best_reverse_match<'keys, 'values, 'route, 'captures>(
-        &'route self,
-        captures: &'captures Captures<'keys, 'values>,
-    ) -> Option<ReverseMatch<'keys, 'values, 'captures, 'route, T>> {
-        self.routes.iter().find_map(|r| r.reverse_match(captures))
-    }
-
-    pub fn reverse_matches<'keys, 'values, 'route, 'captures>(
-        &'route self,
-        captures: &'captures Captures<'keys, 'values>,
-    ) -> Vec<ReverseMatch<'keys, 'values, 'captures, 'route, T>> {
         self.routes
             .iter()
-            .filter_map(|r| r.reverse_match(captures))
-            .collect()
+            .rev()
+            .find_map(|route| Match::new(path, route))
     }
 
     /// Returns _all_ of the matching routes for a given path. This is
@@ -113,7 +99,53 @@ impl<T> Router<T> {
     pub fn matches<'a, 'b>(&'a self, path: &'b str) -> Vec<Match<'a, 'b, T>> {
         self.routes
             .iter()
-            .filter_map(|route| route.is_match(path))
+            .filter_map(|route| Match::new(path, route))
+            .collect()
+    }
+
+    /// Returns the single best [`ReverseMatch`] for the provided captures
+    ///
+    /// ```rust
+    /// use routefinder::{Router, Captures};
+    /// let mut router = Router::new();
+    /// router.add("/users/:user_id/posts/:post_id", ()).unwrap();
+    ///
+    /// let captures = Captures::from(vec![("user_id", "1"), ("post_id", "10")]);
+    /// let reverse_match = router.best_reverse_match(&captures).unwrap();
+    /// assert_eq!("/users/1/posts/10", reverse_match.to_string());
+    /// ```
+    pub fn best_reverse_match<'keys, 'values, 'router, 'captures>(
+        &'router self,
+        captures: &'captures Captures<'keys, 'values>,
+    ) -> Option<ReverseMatch<'keys, 'values, 'captures, 'router, T>> {
+        self.routes
+            .iter()
+            .find_map(|route| ReverseMatch::new(captures, route))
+    }
+
+    /// Returns all valid [`ReverseMatch`]es for the provided captures
+    ///
+    /// ```rust
+    /// use routefinder::{Router, Captures};
+    /// let mut router = Router::new();
+    /// router.add("/settings/:user_id/*", ()).unwrap();
+    /// router.add("/profiles/:user_id", ()).unwrap();
+    ///
+    /// let captures = Captures::from(vec![("user_id", "1")]);
+    /// let reverse_matches = router.reverse_matches(&captures);
+    /// assert_eq!(2, reverse_matches.len());
+    /// assert_eq!(
+    ///     reverse_matches.iter().map(|r| r.to_string()).collect::<Vec<_>>(),
+    ///     vec!["/settings/1/", "/profiles/1"]
+    /// );
+    /// ```
+    pub fn reverse_matches<'keys, 'values, 'router, 'captures>(
+        &'router self,
+        captures: &'captures Captures<'keys, 'values>,
+    ) -> Vec<ReverseMatch<'keys, 'values, 'captures, 'router, T>> {
+        self.routes
+            .iter()
+            .filter_map(|route| ReverseMatch::new(captures, route))
             .collect()
     }
 }

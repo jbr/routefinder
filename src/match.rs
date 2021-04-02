@@ -15,15 +15,76 @@ pub struct Match<'router, 'path, T> {
 }
 
 impl<'router, 'path, T> Match<'router, 'path, T> {
-    pub(crate) fn new(
-        path: &'path str,
-        route: &'router Route<T>,
-        captures: Vec<&'path str>,
-    ) -> Self {
-        Self {
-            path,
-            route,
-            captures,
+    /// Attempts to build a new Match from the provided path string
+    /// and route. Returns None if the match was unsuccessful
+    pub fn new(path: &'path str, route: &'router Route<T>) -> Option<Self> {
+        let mut p = path.trim_start_matches('/').trim_end_matches('/');
+        let mut captures = vec![];
+
+        let mut peek = route.segments().iter().peekable();
+        while let Some(segment) = peek.next() {
+            p = match &*segment {
+                Segment::Exact(e) => {
+                    if p.starts_with(&*e) {
+                        &p[e.len()..]
+                    } else {
+                        return None;
+                    }
+                }
+
+                Segment::Param(_) => {
+                    if p.is_empty() { return None; }
+                    match peek.peek() {
+                        None | Some(Segment::Slash) => {
+                            let capture = p.split('/').next()?;
+                            captures.push(capture);
+                            &p[capture.len()..]
+                        }
+                        Some(Segment::Dot) => {
+                            let index = p.find(|c| c == '.' || c == '/')?;
+                            if p.chars().nth(index) == Some('.') {
+                                captures.push(&p[..index]);
+                                &p[index + 1..]
+                            } else {
+                                return None;
+                            }
+                        }
+                        _ => panic!("param must be followed by a dot, a slash, or the end of the route"),
+                    }
+                }
+
+                Segment::Wildcard => {
+                    match peek.peek() {
+                        Some(_) => panic!("wildcard must currently be the terminal segment, please file an issue if you have a use case for a mid-route *"),
+                        None => {
+                            captures.push(p);
+                            ""
+                        }
+                    }
+                }
+
+                Segment::Slash => match (p.chars().next(), peek.peek()) {
+                    (Some('/'),Some(_)) => &p[1..],
+                    (None, None) => p,
+                    (None, Some(Segment::Wildcard)) => p,
+                    _ => return None,
+                }
+
+                Segment::Dot => match p.chars().next() {
+                    Some('.') => &p[1..],
+                    _ => return None,
+                }
+            }
+        }
+
+        if p.is_empty() || p == "/" {
+            Some(Self {
+                path,
+                route,
+                captures,
+            })
+        } else {
+            None
         }
     }
 
@@ -32,6 +93,7 @@ impl<'router, 'path, T> Match<'router, 'path, T> {
         self.route.handler()
     }
 
+    /// Returns the routespec for this route
     pub fn route(&self) -> &'router RouteSpec {
         self.route.definition()
     }
