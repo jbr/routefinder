@@ -23,21 +23,18 @@
 //! router.add("/:greeting/:world/*", 6)?;
 //!
 //! assert_eq!(*router.best_match("/hey/earth").unwrap(), 5);
-//!
 //! assert_eq!(
 //!     router.best_match("/hey/mars").unwrap().captures().get("world"),
 //!     Some("mars")
 //! );
-//!
 //! assert_eq!(router.matches("/hello").len(), 3);
-//!
 //! assert_eq!(router.matches("/").len(), 1);
-
+//!
+//! // reverse lookup
 //! let captures = Captures::from(vec![("world", "jupiter")]);
-//! assert_eq!(
-//!     router.best_reverse_match(&captures).unwrap().to_string(),
-//!     "/hey/jupiter"
-//! );
+//! let reverse_match = router.best_reverse_match(&captures).unwrap();
+//! assert_eq!(*reverse_match, 5);
+//! assert_eq!(reverse_match.to_string(), "/hey/jupiter");
 //! # Ok(()) }
 //! ```
 
