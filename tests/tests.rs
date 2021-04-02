@@ -146,7 +146,7 @@ fn reverse_lookup() -> Result {
     // matching with a simple capture
 
     let mut captures = Captures::new();
-    captures.push(Capture::new(String::from("world"), String::from("mars")));
+    captures.push(Capture::new("world", "mars"));
 
     let reversed_match = router.best_reverse_match(&captures).unwrap();
     assert_eq!(reversed_match.to_string(), "/hey/mars");
@@ -170,7 +170,7 @@ fn reverse_lookup() -> Result {
     // matching with a wildcard
 
     let mut captures = Captures::new();
-    captures.set_wildcard(String::from("hello/world"));
+    captures.set_wildcard("hello/world");
 
     let reversed_match = router.best_reverse_match(&captures).unwrap();
     assert_eq!(reversed_match.to_string(), "/hello/world");
@@ -179,12 +179,8 @@ fn reverse_lookup() -> Result {
     // matching with multiple params and a wildcard
 
     let mut captures = Captures::new();
-    captures.set_wildcard(String::from("this/is/wildcard/stuff"));
-    captures.push(Capture::new(
-        String::from("greeting"),
-        String::from("howdy"),
-    ));
-    captures.push(Capture::new(String::from("world"), String::from("mars")));
+    captures.extend(vec![("greeting", "howdy"), ("world", "mars")]);
+    captures.set_wildcard("this/is/wildcard/stuff");
 
     let reversed_match = router.best_reverse_match(&captures).unwrap();
     assert_eq!(

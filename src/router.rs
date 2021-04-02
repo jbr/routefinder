@@ -77,17 +77,17 @@ impl<T> Router<T> {
         self.routes.iter().rev().find_map(|r| r.is_match(path))
     }
 
-    pub fn best_reverse_match<'route, 'captures>(
+    pub fn best_reverse_match<'keys, 'values, 'route, 'captures>(
         &'route self,
-        captures: &'captures Captures,
-    ) -> Option<ReverseMatch<'captures, 'route, T>> {
+        captures: &'captures Captures<'keys, 'values>,
+    ) -> Option<ReverseMatch<'keys, 'values, 'captures, 'route, T>> {
         self.routes.iter().find_map(|r| r.reverse_match(captures))
     }
 
-    pub fn reverse_matches<'route, 'captures>(
+    pub fn reverse_matches<'keys, 'values, 'route, 'captures>(
         &'route self,
-        captures: &'captures Captures,
-    ) -> Vec<ReverseMatch<'captures, 'route, T>> {
+        captures: &'captures Captures<'keys, 'values>,
+    ) -> Vec<ReverseMatch<'keys, 'values, 'captures, 'route, T>> {
         self.routes
             .iter()
             .filter_map(|r| r.reverse_match(captures))
