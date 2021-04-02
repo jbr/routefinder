@@ -134,35 +134,26 @@ impl<T> Route<T> {
         &'route self,
         captures: &'captures crate::Captures<'keys, 'values>,
     ) -> Option<ReverseMatch<'keys, 'values, 'captures, 'route, T>> {
-        let param_names = self
+        let all_params_matched = self
             .segments()
             .iter()
             .filter_map(|s| match s {
                 Segment::Param(s) => Some(s),
                 _ => None,
             })
-            .collect::<Vec<_>>();
+            .eq(captures.params().iter().map(|c| c.name()));
 
-        let provided_names = captures
-            .params()
-            .iter()
-            .map(|capture| capture.name())
-            .collect::<Vec<_>>();
-
-        let wildcard_match = if captures.wildcard().is_some() {
-            self.segments()
-                .iter()
-                .rev()
-                .any(|s| matches!(s, Segment::Wildcard))
-        } else {
-            true
-        };
-
-        if param_names == provided_names && wildcard_match {
-            Some(ReverseMatch::new(&captures, &self))
-        } else {
-            None
+        if !all_params_matched {
+            return None;
         }
+
+        if captures.wildcard().is_some()
+            && !matches!(self.segments().last(), Some(Segment::Wildcard))
+        {
+            return None;
+        }
+
+        Some(ReverseMatch::new(&captures, &self))
     }
 }
 
