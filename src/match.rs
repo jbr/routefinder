@@ -2,9 +2,10 @@ use std::{cmp::Ordering, ops::Deref};
 
 use crate::{Capture, Captures, Route, RouteSpec, Segment};
 
-/// This struct represents the output of a successful application of a
-/// [`Route`] to a str path, as well as references to any captures
-/// such as params and wildcards. It dereferences to the contained type T
+/// The output of a successful application of a
+/// [`Route`] to a str path, as well as references to any captures.
+///
+/// It dereferences to the contained type T
 
 #[derive(Debug)]
 pub struct Match<'router, 'path, T> {

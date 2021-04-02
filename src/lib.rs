@@ -6,10 +6,7 @@
     unused_qualifications
 )]
 
-//! # routefinder
-//!
-//! check out [`Router`] for a good starting place
-//!
+//! # Routefinder
 //!
 //! ```rust
 //! use routefinder::{Router, Captures};
@@ -36,6 +33,9 @@
 //! assert_eq!(*reverse_match, 5);
 //! assert_eq!(reverse_match.to_string(), "/hey/jupiter");
 //! # Ok(()) }
+//!
+//! Check out [`Router`] for a good starting place
+//!
 //! ```
 
 mod captures;

@@ -5,7 +5,9 @@ use std::{
     fmt::{self, Debug, Formatter},
 };
 
-/// a router represents an ordered set of routes which can be applied
+/// The top level struct for routefinder
+///
+/// A router represents an ordered set of routes which can be applied
 /// to a given request path, and any handler T that is associated with
 /// each route
 

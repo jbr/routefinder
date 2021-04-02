@@ -66,8 +66,10 @@ impl<T> Route<T> {
     }
 }
 
-/// the internal representation of a route, containing both the source
-/// string (or unique description) and a Vec of [`Segment`]s
+/// Routefinder's representation of the parsed route
+///
+/// This contains both the source string (or unique description) and
+/// an ordered sequence of [`Segment`]s
 #[derive(PartialEq, Eq)]
 pub struct RouteSpec {
     source: String,

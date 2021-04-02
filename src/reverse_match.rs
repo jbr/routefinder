@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use crate::{Captures, Route, Segment};
 /// This struct represents the result of a reverse lookup from
-/// Captures to a Route
+/// [`Captures`] to a [`Route`]
 #[derive(Debug, Clone, Copy)]
 pub struct ReverseMatch<'keys, 'values, 'captures, 'route, T> {
     route: &'route Route<T>,
@@ -10,7 +10,7 @@ pub struct ReverseMatch<'keys, 'values, 'captures, 'route, T> {
 }
 
 impl<'keys, 'values, 'captures, 'route, T> ReverseMatch<'keys, 'values, 'captures, 'route, T> {
-    /// attempts to build a new ReverseMatch. Returns None if the
+    /// Attempts to build a new ReverseMatch. Returns None if the
     /// match was unsuccessful.
     pub fn new(
         captures: &'captures Captures<'keys, 'values>,
@@ -38,12 +38,12 @@ impl<'keys, 'values, 'captures, 'route, T> ReverseMatch<'keys, 'values, 'capture
         Some(Self { captures, route })
     }
 
-    /// returns the Route for this ReverseMatch
+    /// Returns the Route for this ReverseMatch
     pub fn route(&self) -> &Route<T> {
         &self.route
     }
 
-    /// returns the Captures for this ReverseMatch
+    /// Returns the Captures for this ReverseMatch
     pub fn captures(&self) -> &Captures {
         &self.captures
     }
