@@ -36,13 +36,19 @@
 //! ```
 
 mod captures;
-mod r#match;
-mod route;
-mod router;
-mod segment;
+pub use captures::{Capture, Captures};
 
-pub use captures::Captures;
+mod r#match;
 pub use r#match::Match;
+
+mod route;
 pub use route::{Route, RouteSpec};
+
+mod router;
 pub use router::Router;
+
+mod segment;
 pub use segment::Segment;
+
+mod reverse_match;
+pub use reverse_match::ReverseMatch;

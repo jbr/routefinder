@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 use std::ops::Deref;
 
-use crate::{Captures, Route, RouteSpec, Segment};
+use crate::{Capture, Captures, Route, RouteSpec, Segment};
 
 /// This struct represents the output of a successful application of a
 /// [`Route`] to a str path, as well as references to any captures
@@ -47,12 +47,12 @@ impl<'router, 'path, T> Match<'router, 'path, T> {
                 Captures::default(),
                 |mut captures, (segment, capture)| match segment {
                     Segment::Param(name) => {
-                        captures.0.push((name.clone(), String::from(*capture)));
+                        captures.push(Capture::new(name.clone(), String::from(*capture)));
                         captures
                     }
 
                     Segment::Wildcard => {
-                        captures.1 = Some(String::from(*capture));
+                        captures.set_wildcard(String::from(*capture));
                         captures
                     }
                     _ => captures,

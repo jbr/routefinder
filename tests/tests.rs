@@ -131,3 +131,67 @@ fn errors_on_add() {
 
     assert_eq!(router.add(":", ()).unwrap_err(), "params must be named");
 }
+
+#[test]
+fn reverse_lookup() -> Result {
+    let mut router = Router::new();
+    router.add("/*", 1)?;
+    router.add("/hello", 2)?;
+    router.add("/:greeting", 3)?;
+    router.add("/hey/:world", 4)?;
+    router.add("/hey/earth", 5)?;
+    router.add("/:greeting/:world/*", 6)?;
+    router.add("/deeply/nested/:world/*", 7)?;
+
+    // matching with a simple capture
+
+    let mut captures = Captures::new();
+    captures.push(Capture::new(String::from("world"), String::from("mars")));
+
+    let reversed_match = router.best_reverse_match(&captures).unwrap();
+    assert_eq!(reversed_match.to_string(), "/hey/mars");
+    assert_eq!(*reversed_match, 4);
+
+    let all_reverse_matches = router.reverse_matches(&captures);
+    assert_eq!(2, all_reverse_matches.len());
+    assert_eq!(
+        all_reverse_matches.iter().map(|r| **r).collect::<Vec<_>>(),
+        vec![4, 7]
+    );
+
+    assert_eq!(
+        all_reverse_matches
+            .iter()
+            .map(|r| r.to_string())
+            .collect::<Vec<_>>(),
+        vec!["/hey/mars", "/deeply/nested/mars/"]
+    );
+
+    // matching with a wildcard
+
+    let mut captures = Captures::new();
+    captures.set_wildcard(String::from("hello/world"));
+
+    let reversed_match = router.best_reverse_match(&captures).unwrap();
+    assert_eq!(reversed_match.to_string(), "/hello/world");
+    assert_eq!(*reversed_match, 1);
+
+    // matching with multiple params and a wildcard
+
+    let mut captures = Captures::new();
+    captures.set_wildcard(String::from("this/is/wildcard/stuff"));
+    captures.push(Capture::new(
+        String::from("greeting"),
+        String::from("howdy"),
+    ));
+    captures.push(Capture::new(String::from("world"), String::from("mars")));
+
+    let reversed_match = router.best_reverse_match(&captures).unwrap();
+    assert_eq!(
+        reversed_match.to_string(),
+        "/howdy/mars/this/is/wildcard/stuff"
+    );
+    assert_eq!(*reversed_match, 6);
+
+    Ok(())
+}
