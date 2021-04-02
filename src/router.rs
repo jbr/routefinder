@@ -1,7 +1,9 @@
-use std::collections::BTreeSet;
-use std::convert::TryInto;
-
 use crate::{Captures, Match, ReverseMatch, Route, RouteSpec};
+use std::{
+    collections::BTreeSet,
+    convert::TryInto,
+    fmt::{self, Debug, Formatter},
+};
 
 /// a router represents an ordered set of routes which can be applied
 /// to a given request path, and any handler T that is associated with
@@ -11,8 +13,8 @@ pub struct Router<T> {
     routes: BTreeSet<Route<T>>,
 }
 
-impl<T> std::fmt::Debug for Router<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<T> Debug for Router<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_set().entries(self.routes.iter()).finish()
     }
 }

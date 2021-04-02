@@ -12,7 +12,7 @@
 //!
 //!
 //! ```rust
-//! use routefinder::Router;
+//! use routefinder::{Router, Captures};
 //! # pub fn main() -> Result<(), String> {
 //! let mut router = Router::new();
 //! router.add("/*", 1)?;
@@ -32,6 +32,12 @@
 //! assert_eq!(router.matches("/hello").len(), 3);
 //!
 //! assert_eq!(router.matches("/").len(), 1);
+
+//! let captures = Captures::from(vec![("world", "jupiter")]);
+//! assert_eq!(
+//!     router.best_reverse_match(&captures).unwrap().to_string(),
+//!     "/hey/jupiter"
+//! );
 //! # Ok(()) }
 //! ```
 

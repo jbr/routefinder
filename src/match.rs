@@ -1,5 +1,4 @@
-use std::cmp::Ordering;
-use std::ops::Deref;
+use std::{cmp::Ordering, ops::Deref};
 
 use crate::{Capture, Captures, Route, RouteSpec, Segment};
 
