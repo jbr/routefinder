@@ -33,10 +33,10 @@
 //! assert_eq!(*reverse_match, 5);
 //! assert_eq!(reverse_match.to_string(), "/hey/jupiter");
 //! # Ok(()) }
+//! ```
 //!
 //! Check out [`Router`] for a good starting place
 //!
-//! ```
 
 mod captures;
 pub use captures::{Capture, Captures};
