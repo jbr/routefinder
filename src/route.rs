@@ -1,8 +1,11 @@
-use std::cmp::Ordering;
-use std::convert::{TryFrom, TryInto};
-use std::str::FromStr;
-
-use crate::{Match, ReverseMatch, Segment};
+use crate::Segment;
+use std::{
+    cmp::Ordering,
+    convert::{TryFrom, TryInto},
+    fmt::{self, Debug, Display, Formatter},
+    iter,
+    str::FromStr,
+};
 
 /// A parsed [`RouteSpec`] and associated handler
 pub struct Route<T> {
@@ -10,8 +13,8 @@ pub struct Route<T> {
     handler: T,
 }
 
-impl<T> std::fmt::Debug for Route<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<T> Debug for Route<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_fmt(format_args!("Route({:?})", &self.definition))
     }
 }
@@ -71,8 +74,8 @@ pub struct RouteSpec {
     segments: Vec<Segment>,
 }
 
-impl std::fmt::Display for RouteSpec {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for RouteSpec {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_str("/")?;
         for segment in &self.segments {
             match segment {
@@ -87,8 +90,8 @@ impl std::fmt::Display for RouteSpec {
     }
 }
 
-impl std::fmt::Debug for RouteSpec {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Debug for RouteSpec {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_fmt(format_args!("{}", self))
     }
 }
@@ -157,7 +160,7 @@ impl Ord for RouteSpec {
             .iter()
             .zip(&other.segments)
             .map(|(mine, theirs)| mine.cmp(theirs))
-            .chain(std::iter::once_with(|| {
+            .chain(iter::once_with(|| {
                 other.segments.len().cmp(&self.segments.len())
             }))
             .find(|c| *c != Ordering::Equal)

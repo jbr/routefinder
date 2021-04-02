@@ -1,6 +1,8 @@
-use std::borrow::Cow;
-use std::iter::FromIterator;
-use std::ops::{Deref, DerefMut};
+use std::{
+    borrow::Cow,
+    iter::FromIterator,
+    ops::{Deref, DerefMut},
+};
 
 /// An individual key-value pair
 #[derive(Debug, Default)]
