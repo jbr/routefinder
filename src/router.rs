@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use std::convert::TryInto;
 
-use crate::{Match, Route, RouteSpec};
+use crate::{Captures, Match, ReverseMatch, Route, RouteSpec};
 
 /// a router represents an ordered set of routes which can be applied
 /// to a given request path, and any handler T that is associated with
@@ -75,6 +75,23 @@ impl<T> Router<T> {
     /// ```
     pub fn best_match<'a, 'b>(&'a self, path: &'b str) -> Option<Match<'a, 'b, T>> {
         self.routes.iter().rev().find_map(|r| r.is_match(path))
+    }
+
+    pub fn best_reverse_match<'route, 'captures>(
+        &'route self,
+        captures: &'captures Captures,
+    ) -> Option<ReverseMatch<'captures, 'route, T>> {
+        self.routes.iter().find_map(|r| r.reverse_match(captures))
+    }
+
+    pub fn reverse_matches<'route, 'captures>(
+        &'route self,
+        captures: &'captures Captures,
+    ) -> Vec<ReverseMatch<'captures, 'route, T>> {
+        self.routes
+            .iter()
+            .filter_map(|r| r.reverse_match(captures))
+            .collect()
     }
 
     /// Returns _all_ of the matching routes for a given path. This is

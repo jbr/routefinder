@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
 
-use crate::{Match, Segment};
+use crate::{Match, ReverseMatch, Segment};
 
 /// A parsed [`RouteSpec`] and associated handler
 pub struct Route<T> {
@@ -125,6 +125,41 @@ impl<T> Route<T> {
 
         if p.is_empty() || p == "/" {
             Some(Match::new(path, &self, captures))
+        } else {
+            None
+        }
+    }
+
+    pub fn reverse_match<'route, 'captures>(
+        &'route self,
+        captures: &'captures crate::Captures,
+    ) -> Option<ReverseMatch<'captures, 'route, T>> {
+        let param_names = self
+            .segments()
+            .iter()
+            .filter_map(|s| match s {
+                Segment::Param(s) => Some(s),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        let provided_names = captures
+            .params()
+            .iter()
+            .map(|capture| capture.name())
+            .collect::<Vec<_>>();
+
+        let wildcard_match = if captures.wildcard().is_some() {
+            self.segments()
+                .iter()
+                .rev()
+                .any(|s| matches!(s, Segment::Wildcard))
+        } else {
+            true
+        };
+
+        if param_names == provided_names && wildcard_match {
+            Some(ReverseMatch::new(&captures, &self))
         } else {
             None
         }
