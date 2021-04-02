@@ -178,8 +178,7 @@ fn reverse_lookup() -> Result {
 
     // matching with multiple params and a wildcard
 
-    let mut captures = Captures::new();
-    captures.extend(vec![("greeting", "howdy"), ("world", "mars")]);
+    let mut captures = Captures::from(vec![("greeting", "howdy"), ("world", "mars")]);
     captures.set_wildcard("this/is/wildcard/stuff");
 
     let reversed_match = router.best_reverse_match(&captures).unwrap();

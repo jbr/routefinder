@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::iter::FromIterator;
 use std::ops::{Deref, DerefMut};
 
+/// An individual key-value pair
 #[derive(Debug, Default)]
 pub struct Capture<'key, 'value> {
     key: Cow<'key, str>,
@@ -9,6 +10,8 @@ pub struct Capture<'key, 'value> {
 }
 
 impl<'key, 'value> Capture<'key, 'value> {
+    /// Build a new Capture from the provided key and value. Passing a
+    /// &str here is preferable, but a String will also work.
     pub fn new(key: impl Into<Cow<'key, str>>, value: impl Into<Cow<'value, str>>) -> Self {
         Self {
             key: key.into(),
@@ -16,14 +19,20 @@ impl<'key, 'value> Capture<'key, 'value> {
         }
     }
 
+    /// returns the name of this capture
     pub fn name(&self) -> &str {
         &self.key
     }
 
+    /// returns the value of this capture
     pub fn value(&self) -> &str {
         &self.value
     }
 
+    /// transforms this potentially-borrowed Capture into a 'static
+    /// capture that can outlive the source data. This allocates new
+    /// strings if needed, and should be avoided unless necessary for
+    /// a particular application
     pub fn into_owned(self) -> Capture<'static, 'static> {
         Capture {
             key: self.key.to_string().into(),
@@ -32,7 +41,7 @@ impl<'key, 'value> Capture<'key, 'value> {
     }
 }
 
-/// Captured params and wildcards
+/// Captured params and a wildcard
 #[derive(Debug, Default)]
 pub struct Captures<'keys, 'values> {
     pub(crate) params: Vec<Capture<'keys, 'values>>,
@@ -40,10 +49,15 @@ pub struct Captures<'keys, 'values> {
 }
 
 impl<'keys, 'values> Captures<'keys, 'values> {
+    /// Builds a new empty Captures
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Transforms this Captures into a 'static Captures which can
+    /// outlive the source data. This allocates new strings if needed,
+    /// and should be avoided unless necessary for a particular
+    /// application
     pub fn into_owned(self) -> Captures<'static, 'static> {
         Captures {
             params: self.params.into_iter().map(|c| c.into_owned()).collect(),
@@ -51,10 +65,13 @@ impl<'keys, 'values> Captures<'keys, 'values> {
         }
     }
 
+    /// returns a slice of captures
     pub fn params(&self) -> &[Capture] {
         &self.params[..]
     }
 
+    /// set the captured wildcard to the provided &str or
+    /// String. Prefer passing a &str if available.
     pub fn set_wildcard(&mut self, wildcard: impl Into<Cow<'values, str>>) {
         self.wildcard = Some(wildcard.into());
     }
@@ -73,6 +90,11 @@ impl<'keys, 'values> Captures<'keys, 'values> {
                 None
             }
         })
+    }
+
+    /// Add the provided Capture (or capture-like) to the end of the params
+    pub fn push(&mut self, capture: impl Into<Capture<'keys, 'values>>) {
+        self.params.push(capture.into());
     }
 }
 
@@ -96,6 +118,15 @@ impl<'key, 'value> From<(&'key str, &'value str)> for Capture<'key, 'value> {
             key: kv.0.into(),
             value: kv.1.into(),
         }
+    }
+}
+
+impl<'keys, 'values, F> From<F> for Captures<'keys, 'values>
+where
+    F: IntoIterator<Item = (&'keys str, &'values str)>,
+{
+    fn from(f: F) -> Self {
+        f.into_iter().collect()
     }
 }
 
