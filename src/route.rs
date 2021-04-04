@@ -1,4 +1,4 @@
-use crate::Segment;
+use crate::{Captures, ReverseMatch, Segment};
 use std::{
     cmp::Ordering,
     convert::{TryFrom, TryInto},
@@ -8,46 +8,60 @@ use std::{
 };
 
 /// A parsed [`RouteSpec`] and associated handler
-pub struct Route<T> {
+pub struct Route<T, N = ()> {
+    name: Option<N>,
     definition: RouteSpec,
     handler: T,
 }
 
-impl<T> Debug for Route<T> {
+impl<T, N: Debug> Debug for Route<T, N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        if let Some(ref name) = self.name {
+            f.write_fmt(format_args!("{:?}: ", name))?;
+        }
         f.write_fmt(format_args!("Route({:?})", &self.definition))
     }
 }
 
-impl<T> PartialEq for Route<T> {
+impl<T, N> PartialEq for Route<T, N> {
     fn eq(&self, other: &Self) -> bool {
         self.definition == other.definition
     }
 }
 
-impl<T> Eq for Route<T> {}
+impl<T, N> Eq for Route<T, N> {}
 
-impl<T> PartialOrd for Route<T> {
+impl<T, N> PartialOrd for Route<T, N> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<T> Ord for Route<T> {
+impl<T, N> Ord for Route<T, N> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.definition.cmp(&other.definition)
     }
 }
 
-impl<T> Route<T> {
-    pub(crate) fn new<R>(route: R, handler: T) -> Result<Self, <R as TryInto<RouteSpec>>::Error>
+impl<T, N: Debug> Route<T, N> {
+    pub(crate) fn new<R>(
+        route: R,
+        handler: T,
+        name: Option<N>,
+    ) -> Result<Self, <R as TryInto<RouteSpec>>::Error>
     where
         R: TryInto<RouteSpec>,
     {
         Ok(Self {
+            name,
             definition: route.try_into()?,
             handler,
         })
+    }
+
+    /// the name for this route, if provided
+    pub fn name(&self) -> Option<&N> {
+        self.name.as_ref()
     }
 
     /// the [`RouteSpec`] for this [`Route`]
@@ -63,6 +77,13 @@ impl<T> Route<T> {
     /// a slice of [`RouteSpec`] [`Segment`]s that represents this route
     pub fn segments(&self) -> &[Segment] {
         &self.definition.segments[..]
+    }
+
+    /// templates out a path with the provided captures
+    pub fn template(&self, captures: &Captures<'_, '_>) -> Result<String, String> {
+        ReverseMatch::new(&captures, &self)
+            .map(|m| m.to_string())
+            .ok_or_else(|| format!("could not template {:?} with {:?}", &self, &captures))
     }
 }
 

@@ -1,20 +1,23 @@
-use std::ops::Deref;
+use std::{fmt::Debug, ops::Deref};
 
 use crate::{Captures, Route, Segment};
 /// This struct represents the result of a reverse lookup from
 /// [`Captures`] to a [`Route`]
 #[derive(Debug, Clone, Copy)]
-pub struct ReverseMatch<'keys, 'values, 'captures, 'route, T> {
-    route: &'route Route<T>,
+pub struct ReverseMatch<'keys, 'values, 'captures, 'route, T, N> {
+    route: &'route Route<T, N>,
     captures: &'captures Captures<'keys, 'values>,
 }
 
-impl<'keys, 'values, 'captures, 'route, T> ReverseMatch<'keys, 'values, 'captures, 'route, T> {
+impl<'keys, 'values, 'captures, 'route, T, N> ReverseMatch<'keys, 'values, 'captures, 'route, T, N>
+where
+    N: Debug,
+{
     /// Attempts to build a new ReverseMatch. Returns None if the
     /// match was unsuccessful.
     pub fn new(
         captures: &'captures Captures<'keys, 'values>,
-        route: &'route Route<T>,
+        route: &'route Route<T, N>,
     ) -> Option<Self> {
         let all_params_matched = route
             .segments()
@@ -39,7 +42,7 @@ impl<'keys, 'values, 'captures, 'route, T> ReverseMatch<'keys, 'values, 'capture
     }
 
     /// Returns the Route for this ReverseMatch
-    pub fn route(&self) -> &Route<T> {
+    pub fn route(&self) -> &Route<T, N> {
         &self.route
     }
 
@@ -49,8 +52,10 @@ impl<'keys, 'values, 'captures, 'route, T> ReverseMatch<'keys, 'values, 'capture
     }
 }
 
-impl<'keys, 'values, 'captures, 'route, T> std::fmt::Display
-    for ReverseMatch<'keys, 'values, 'captures, 'route, T>
+impl<'keys, 'values, 'captures, 'route, T, N> std::fmt::Display
+    for ReverseMatch<'keys, 'values, 'captures, 'route, T, N>
+where
+    N: Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("/")?;
@@ -67,8 +72,10 @@ impl<'keys, 'values, 'captures, 'route, T> std::fmt::Display
     }
 }
 
-impl<'keys, 'values, 'captures, 'route, T> Deref
-    for ReverseMatch<'keys, 'values, 'captures, 'route, T>
+impl<'keys, 'values, 'captures, 'route, T, N> Deref
+    for ReverseMatch<'keys, 'values, 'captures, 'route, T, N>
+where
+    N: Debug,
 {
     type Target = T;
 

@@ -3,6 +3,7 @@ use std::{
     collections::BTreeSet,
     convert::TryInto,
     fmt::{self, Debug, Formatter},
+    ops::Index,
 };
 
 /// The top level struct for routefinder
@@ -11,17 +12,17 @@ use std::{
 /// to a given request path, and any handler T that is associated with
 /// each route
 
-pub struct Router<T> {
-    routes: BTreeSet<Route<T>>,
+pub struct Router<T, N = ()> {
+    routes: BTreeSet<Route<T, N>>,
 }
 
-impl<T> Debug for Router<T> {
+impl<T, N: Debug> Debug for Router<T, N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_set().entries(self.routes.iter()).finish()
     }
 }
 
-impl<T> Default for Router<T> {
+impl<T, N> Default for Router<T, N> {
     fn default() -> Self {
         Self {
             routes: BTreeSet::new(),
@@ -29,7 +30,7 @@ impl<T> Default for Router<T> {
     }
 }
 
-impl<T> Router<T> {
+impl<T> Router<T, ()> {
     /// Builds a new router
     ///
     /// ```rust
@@ -40,7 +41,12 @@ impl<T> Router<T> {
     pub fn new() -> Self {
         Self::default()
     }
+}
 
+impl<T, N> Router<T, N>
+where
+    N: Debug + 'static,
+{
     /// Adds a route to the router, accepting any type that implements TryInto<[`RouteSpec`]>. In most circumstances, this will be a &str or a String.
     ///
     /// ```rust
@@ -53,7 +59,32 @@ impl<T> Router<T> {
     where
         R: TryInto<RouteSpec>,
     {
-        self.routes.insert(Route::new(route, handler)?);
+        self.routes.insert(Route::new(route, handler, None)?);
+        Ok(())
+    }
+
+    /// Adds a route to the router with the provided name, accepting any type that implements TryInto<[`RouteSpec`]>. In most circumstances, this will be a &str or a String.
+    ///
+    /// ```rust
+    /// # fn main() -> Result<(), String> {
+    /// # use routefinder::{Router, Captures};
+    /// let mut router = Router::default();
+    /// assert!(router.add_named("*", (), "wildcard").is_ok());
+    /// assert!(router.add_named("/users/:user_id", (), "user_route").is_ok());
+    /// let captures = Captures::from(vec![("user_id", "jbr")]);
+    /// assert_eq!(router["user_route"].template(&captures)?, "/users/jbr");
+    /// # Ok(()) }
+    /// ```
+    pub fn add_named<R>(
+        &mut self,
+        route: R,
+        handler: T,
+        name: N,
+    ) -> Result<(), <R as TryInto<RouteSpec>>::Error>
+    where
+        R: TryInto<RouteSpec>,
+    {
+        self.routes.insert(Route::new(route, handler, Some(name))?);
         Ok(())
     }
 
@@ -77,7 +108,7 @@ impl<T> Router<T> {
     /// assert_eq!(*router.best_match("/hey/there").unwrap(), 0);
     /// assert_eq!(*router.best_match("/").unwrap(), 0);
     /// ```
-    pub fn best_match<'a, 'b>(&'a self, path: &'b str) -> Option<Match<'a, 'b, T>> {
+    pub fn best_match<'a, 'b>(&'a self, path: &'b str) -> Option<Match<'a, 'b, T, N>> {
         self.routes
             .iter()
             .rev()
@@ -100,7 +131,7 @@ impl<T> Router<T> {
     /// assert_eq!(router.matches("/hey").len(), 2);
     /// assert_eq!(router.matches("/hey/there").len(), 1);
     /// ```
-    pub fn matches<'a, 'b>(&'a self, path: &'b str) -> Vec<Match<'a, 'b, T>> {
+    pub fn matches<'a, 'b>(&'a self, path: &'b str) -> Vec<Match<'a, 'b, T, N>> {
         self.routes
             .iter()
             .filter_map(|route| Match::new(path, route))
@@ -121,7 +152,7 @@ impl<T> Router<T> {
     pub fn best_reverse_match<'keys, 'values, 'router, 'captures>(
         &'router self,
         captures: &'captures Captures<'keys, 'values>,
-    ) -> Option<ReverseMatch<'keys, 'values, 'captures, 'router, T>> {
+    ) -> Option<ReverseMatch<'keys, 'values, 'captures, 'router, T, N>> {
         self.routes
             .iter()
             .find_map(|route| ReverseMatch::new(captures, route))
@@ -146,10 +177,25 @@ impl<T> Router<T> {
     pub fn reverse_matches<'keys, 'values, 'router, 'captures>(
         &'router self,
         captures: &'captures Captures<'keys, 'values>,
-    ) -> Vec<ReverseMatch<'keys, 'values, 'captures, 'router, T>> {
+    ) -> Vec<ReverseMatch<'keys, 'values, 'captures, 'router, T, N>> {
         self.routes
             .iter()
             .filter_map(|route| ReverseMatch::new(captures, route))
             .collect()
+    }
+
+    pub fn get_named(&self, name: impl PartialEq<N>) -> Option<&Route<T, N>> {
+        self.routes.iter().find(|r| match r.name() {
+            Some(route_name) => &name == route_name,
+            None => false,
+        })
+    }
+}
+
+impl<T, N: Debug + 'static, I: PartialEq<N>> Index<I> for Router<T, N> {
+    type Output = Route<T, N>;
+
+    fn index(&self, index: I) -> &Self::Output {
+        self.get_named(index).unwrap()
     }
 }

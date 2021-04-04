@@ -198,3 +198,42 @@ fn reverse_lookup() -> Result {
 
     Ok(())
 }
+
+#[test]
+pub fn named_routes() {
+    let mut router = Router::default();
+    router
+        .add_named("/users/:user_id", (), "user_show")
+        .unwrap();
+
+    assert!(router.get_named("user_show").is_some());
+
+    assert_eq!(
+        router["user_show"]
+            .template(&Captures::from(vec![("user_id", "10")]))
+            .unwrap(),
+        "/users/10"
+    )
+}
+
+#[test]
+pub fn named_routes_with_enum() {
+    #[derive(Debug, PartialEq)]
+    enum Routes {
+        UsersShow,
+    }
+
+    let mut router = Router::default();
+    router
+        .add_named("/users/:user_id", (), Routes::UsersShow)
+        .unwrap();
+
+    assert!(router.get_named(Routes::UsersShow).is_some());
+
+    assert_eq!(
+        router[Routes::UsersShow]
+            .template(&Captures::from(vec![("user_id", "10")]))
+            .unwrap(),
+        "/users/10"
+    )
+}

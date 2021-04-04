@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, ops::Deref};
+use std::{cmp::Ordering, fmt::Debug, ops::Deref};
 
 use crate::{Capture, Captures, Route, RouteSpec, Segment};
 
@@ -8,16 +8,19 @@ use crate::{Capture, Captures, Route, RouteSpec, Segment};
 /// It dereferences to the contained type T
 
 #[derive(Debug)]
-pub struct Match<'router, 'path, T> {
+pub struct Match<'router, 'path, T, N = ()> {
     path: &'path str,
-    route: &'router Route<T>,
+    route: &'router Route<T, N>,
     captures: Vec<&'path str>,
 }
 
-impl<'router, 'path, T> Match<'router, 'path, T> {
+impl<'router, 'path, T, N> Match<'router, 'path, T, N>
+where
+    N: Debug,
+{
     /// Attempts to build a new Match from the provided path string
     /// and route. Returns None if the match was unsuccessful
-    pub fn new(path: &'path str, route: &'router Route<T>) -> Option<Self> {
+    pub fn new(path: &'path str, route: &'router Route<T, N>) -> Option<Self> {
         let mut p = path.trim_start_matches('/').trim_end_matches('/');
         let mut captures = vec![];
 
@@ -123,27 +126,39 @@ impl<'router, 'path, T> Match<'router, 'path, T> {
     }
 }
 
-impl<'router, 'path, T> PartialEq for Match<'router, 'path, T> {
+impl<'router, 'path, T, N> PartialEq for Match<'router, 'path, T, N>
+where
+    N: Debug,
+{
     fn eq(&self, other: &Self) -> bool {
         *other.route == *self.route
     }
 }
 
-impl<'router, 'path, T> Eq for Match<'router, 'path, T> {}
+impl<'router, 'path, T, N> Eq for Match<'router, 'path, T, N> where N: Debug {}
 
-impl<'router, 'path, T> PartialOrd for Match<'router, 'path, T> {
+impl<'router, 'path, T, N> PartialOrd for Match<'router, 'path, T, N>
+where
+    N: Debug,
+{
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<'router, 'path, T> Ord for Match<'router, 'path, T> {
+impl<'router, 'path, T, N> Ord for Match<'router, 'path, T, N>
+where
+    N: Debug,
+{
     fn cmp(&self, other: &Self) -> Ordering {
         self.route.cmp(&other.route)
     }
 }
 
-impl<'router, 'path, T> Deref for Match<'router, 'path, T> {
+impl<'router, 'path, T, N> Deref for Match<'router, 'path, T, N>
+where
+    N: Debug,
+{
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
