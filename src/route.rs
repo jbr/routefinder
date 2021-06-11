@@ -83,7 +83,7 @@ impl Display for RouteSpec {
             match segment {
                 Segment::Slash => f.write_str("/")?,
                 Segment::Dot => f.write_str(".")?,
-                Segment::Exact(s) => f.write_str(&s)?,
+                Segment::Exact(s) => f.write_str(s)?,
                 Segment::Param(p) => f.write_fmt(format_args!(":{}", p))?,
                 Segment::Wildcard => f.write_str("*")?,
             };

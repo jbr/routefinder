@@ -35,17 +35,17 @@ impl<'keys, 'values, 'captures, 'route, T> ReverseMatch<'keys, 'values, 'capture
             return None;
         }
 
-        Some(Self { captures, route })
+        Some(Self { route, captures })
     }
 
     /// Returns the Route for this ReverseMatch
     pub fn route(&self) -> &Route<T> {
-        &self.route
+        self.route
     }
 
     /// Returns the Captures for this ReverseMatch
     pub fn captures(&self) -> &Captures {
-        &self.captures
+        self.captures
     }
 }
 

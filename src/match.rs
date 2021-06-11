@@ -139,7 +139,7 @@ impl<'router, 'path, T> PartialOrd for Match<'router, 'path, T> {
 
 impl<'router, 'path, T> Ord for Match<'router, 'path, T> {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.route.cmp(&other.route)
+        self.route.cmp(other.route)
     }
 }
 
