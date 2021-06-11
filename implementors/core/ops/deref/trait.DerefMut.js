@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["routefinder"] = [{"text":"impl&lt;'keys, 'values&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/ops/deref/trait.DerefMut.html\" title=\"trait core::ops::deref::DerefMut\">DerefMut</a> for <a class=\"struct\" href=\"routefinder/struct.Captures.html\" title=\"struct routefinder::Captures\">Captures</a>&lt;'keys, 'values&gt;","synthetic":false,"types":["routefinder::captures::Captures"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
