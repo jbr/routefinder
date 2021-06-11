@@ -1,8 +1,9 @@
 use crate::{Captures, Match, ReverseMatch, Route, RouteSpec};
 use std::{
-    collections::BTreeSet,
+    collections::{btree_set::Iter as BTreeSetIter, BTreeSet},
     convert::TryInto,
     fmt::{self, Debug, Formatter},
+    iter::Rev,
 };
 
 /// The top level struct for routefinder
@@ -26,6 +27,16 @@ impl<T> Default for Router<T> {
         Self {
             routes: BTreeSet::new(),
         }
+    }
+}
+
+impl<'a, T: 'a> IntoIterator for &'a Router<T> {
+    type Item = &'a Route<T>;
+
+    type IntoIter = Rev<BTreeSetIter<'a, Route<T>>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.routes.iter().rev()
     }
 }
 
