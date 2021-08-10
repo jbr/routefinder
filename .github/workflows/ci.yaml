@@ -11,13 +11,12 @@ env:
 
 jobs:
   test:
-    name: Build and test
+    name: Build and Test
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]
-        rust: [nightly, stable]
-
+        os: [ubuntu-latest, macOS-latest, windows-latest]
+        rust: [stable, nightly]
     steps:
     - uses: actions/checkout@master
     - name: Install ${{ matrix.rust }}
@@ -25,14 +24,18 @@ jobs:
       with:
         toolchain: ${{ matrix.rust }}
         override: true
-    - name: tests
+
+    - name: Rust Cache
+      uses: Swatinem/rust-cache@v1.3.0
+
+    - name: Run tests
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --all
+        args: --all --no-fail-fast
 
   check_fmt_and_docs:
-    name: Checking fmt, clippy, and docs
+    name: Lints and Docs
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@master
@@ -42,11 +45,13 @@ jobs:
         components: rustfmt, clippy
         override: true
 
-    - name: clippy
-      run: cargo clippy --tests --examples -- -D warnings
+    - uses: actions-rs/clippy-check@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        args: --all-features
         
-    - name: fmt
+    - name: Format
       run: cargo fmt --all -- --check
 
-    - name: Build Documentation
-      run: cargo doc --all --no-deps
+    - name: Docs
+      run: cargo doc --no-deps
