@@ -1,4 +1,6 @@
 type Result = std::result::Result<(), Box<dyn std::error::Error>>;
+use std::str::FromStr;
+
 use routefinder::*;
 
 #[test]
@@ -133,68 +135,94 @@ fn errors_on_add() {
 }
 
 #[test]
-fn reverse_lookup() -> Result {
+fn dots() -> Result {
     let mut router = Router::new();
-    router.add("/*", 1)?;
-    router.add("/hello", 2)?;
-    router.add("/:greeting", 3)?;
-    router.add("/hey/:world", 4)?;
-    router.add("/hey/earth", 5)?;
-    router.add("/:greeting/:world/*", 6)?;
-    router.add("/deeply/nested/:world/*", 7)?;
-
-    // matching with a simple capture
-
-    let mut captures = Captures::new();
-    captures.push(Capture::new("world", "mars"));
-
-    let reversed_match = router.best_reverse_match(&captures).unwrap();
-    assert_eq!(reversed_match.to_string(), "/hey/mars");
-    assert_eq!(*reversed_match, 4);
-
-    let all_reverse_matches = router.reverse_matches(&captures);
-    assert_eq!(2, all_reverse_matches.len());
-    assert_eq!(
-        all_reverse_matches.iter().map(|r| **r).collect::<Vec<_>>(),
-        vec![4, 7]
-    );
+    router.add("/:a.:b", 1)?;
+    router.add("/:a/:b.:c", 2)?;
+    router.add("/:a/:b", 3)?;
+    router.add("/:a/:b.txt", 4)?;
+    assert_eq!(*router.best_match("/hello.world").unwrap(), 1);
+    assert_eq!(*router.best_match("/hi/there.world").unwrap(), 2);
+    assert_eq!(*router.best_match("/hi/yep").unwrap(), 3);
+    assert_eq!(*router.best_match("/hi/planet.txt").unwrap(), 4);
 
     assert_eq!(
-        all_reverse_matches
-            .iter()
-            .map(|r| r.to_string())
+        router
+            .matches("/hi/planet.txt")
+            .into_iter()
+            .map(|x| *x)
             .collect::<Vec<_>>(),
-        vec!["/hey/mars", "/deeply/nested/mars/"]
+        vec![4, 2, 3]
     );
 
-    // matching with a wildcard
+    assert!(router.matches("/").is_empty());
+    assert!(router.matches("/a/b/c/d").is_empty());
 
-    let mut captures = Captures::new();
-    captures.set_wildcard("hello/world");
+    Ok(())
+}
 
-    let reversed_match = router.best_reverse_match(&captures).unwrap();
-    assert_eq!(reversed_match.to_string(), "/hello/world");
-    assert_eq!(*reversed_match, 1);
-
-    // matching with multiple params and a wildcard
-
-    let mut captures = Captures::from(vec![("greeting", "howdy"), ("world", "mars")]);
-    captures.set_wildcard("this/is/wildcard/stuff");
-
-    let reversed_match = router.best_reverse_match(&captures).unwrap();
+#[test]
+fn parse() -> Result {
     assert_eq!(
-        reversed_match.to_string(),
-        "/howdy/mars/this/is/wildcard/stuff"
+        RouteSpec::from_str("a.:b")?.matches("a.hello"),
+        Some(vec!["hello"])
     );
-    assert_eq!(*reversed_match, 6);
 
-    // round trip
+    assert_eq!(
+        RouteSpec::from_str(":a.:b")?.matches("a.hello"),
+        Some(vec!["a", "hello"])
+    );
+    Ok(())
+}
 
-    let input = "/howdy/mars/wildcard/stuff";
-    let captures = router.best_match(input).unwrap().captures();
-    let reversed = router.best_reverse_match(&captures).unwrap();
-    assert_eq!(reversed.to_string(), input);
-    assert_eq!(*reversed, 6);
+#[test]
+fn templating() -> Result {
+    assert_eq!(
+        Route::new(":a/:b.:c", ())?
+            .template(&[("a", "users"), ("b", "jbr"), ("c", "txt")].into())
+            .unwrap()
+            .to_string(),
+        "/users/jbr.txt"
+    );
 
+    Ok(())
+}
+
+#[test]
+fn specific_matches() -> Result {
+    assert_eq!(
+        RouteSpec::from_str(":param")?.matches("/a.b.c.d").unwrap(),
+        vec!["a.b.c.d"]
+    );
+
+    assert_eq!(
+        RouteSpec::from_str(":a.:b")?.matches("/a.b.c.d").unwrap(),
+        vec!["a", "b.c.d"]
+    );
+
+    assert_eq!(
+        RouteSpec::from_str(":a.:b.:c")?
+            .matches("/a.b.c.d")
+            .unwrap(),
+        vec!["a", "b", "c.d"]
+    );
+
+    assert_eq!(
+        RouteSpec::from_str(":a.:b.:c.:d")?
+            .matches("/a.b.c.d")
+            .unwrap(),
+        vec!["a", "b", "c", "d"]
+    );
+
+    assert!(RouteSpec::from_str(":a.:b")?.matches("/a").is_none());
+
+    Ok(())
+}
+
+#[test]
+fn priority() -> Result {
+    assert!(RouteSpec::from_str("exact")? > RouteSpec::from_str(":param")?);
+    assert!(RouteSpec::from_str("a")? > RouteSpec::from_str("a/b")?);
+    assert!(RouteSpec::from_str(":a.:b")? > RouteSpec::from_str(":a")?);
     Ok(())
 }

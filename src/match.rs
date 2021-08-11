@@ -1,6 +1,5 @@
-use std::{cmp::Ordering, ops::Deref};
-
 use crate::{Capture, Captures, Route, RouteSpec, Segment};
+use std::{cmp::Ordering, ops::Deref};
 
 /// The output of a successful application of a
 /// [`Route`] to a str path, as well as references to any captures.
@@ -9,85 +8,12 @@ use crate::{Capture, Captures, Route, RouteSpec, Segment};
 
 #[derive(Debug)]
 pub struct Match<'router, 'path, T> {
-    path: &'path str,
-    route: &'router Route<T>,
-    captures: Vec<&'path str>,
+    pub(crate) path: &'path str,
+    pub(crate) route: &'router Route<T>,
+    pub(crate) captures: Vec<&'path str>,
 }
 
 impl<'router, 'path, T> Match<'router, 'path, T> {
-    /// Attempts to build a new Match from the provided path string
-    /// and route. Returns None if the match was unsuccessful
-    pub fn new(path: &'path str, route: &'router Route<T>) -> Option<Self> {
-        let mut p = path.trim_start_matches('/').trim_end_matches('/');
-        let mut captures = vec![];
-
-        let mut peek = route.segments().iter().peekable();
-        while let Some(segment) = peek.next() {
-            p = match &*segment {
-                Segment::Exact(e) => {
-                    if p.starts_with(&*e) {
-                        &p[e.len()..]
-                    } else {
-                        return None;
-                    }
-                }
-
-                Segment::Param(_) => {
-                    if p.is_empty() { return None; }
-                    match peek.peek() {
-                        None | Some(Segment::Slash) => {
-                            let capture = p.split('/').next()?;
-                            captures.push(capture);
-                            &p[capture.len()..]
-                        }
-                        Some(Segment::Dot) => {
-                            let index = p.find(|c| c == '.' || c == '/')?;
-                            if p.chars().nth(index) == Some('.') {
-                                captures.push(&p[..index]);
-                                &p[index + 1..]
-                            } else {
-                                return None;
-                            }
-                        }
-                        _ => panic!("param must be followed by a dot, a slash, or the end of the route"),
-                    }
-                }
-
-                Segment::Wildcard => {
-                    match peek.peek() {
-                        Some(_) => panic!("wildcard must currently be the terminal segment, please file an issue if you have a use case for a mid-route *"),
-                        None => {
-                            captures.push(p);
-                            ""
-                        }
-                    }
-                }
-
-                Segment::Slash => match (p.chars().next(), peek.peek()) {
-                    (Some('/'),Some(_)) => &p[1..],
-                    (None, None) => p,
-                    (None, Some(Segment::Wildcard)) => p,
-                    _ => return None,
-                }
-
-                Segment::Dot => match p.chars().next() {
-                    Some('.') => &p[1..],
-                    _ => return None,
-                }
-            }
-        }
-
-        if p.is_empty() || p == "/" {
-            Some(Self {
-                path,
-                route,
-                captures,
-            })
-        } else {
-            None
-        }
-    }
-
     /// Returns a reference to the handler associated with this route
     pub fn handler(&self) -> &'router T {
         self.route.handler()
@@ -109,7 +35,7 @@ impl<'router, 'path, T> Match<'router, 'path, T> {
                 Captures::default(),
                 |mut captures, (segment, capture)| match segment {
                     Segment::Param(name) => {
-                        captures.push(Capture::new(name, *capture));
+                        captures.push(Capture::new(&**name, *capture));
                         captures
                     }
 

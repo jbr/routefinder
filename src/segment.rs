@@ -1,3 +1,4 @@
+use smartstring::alias::String as SmartString;
 /// the internal representation of a parsed component of a route
 ///
 /// as an example, `/hello/:planet/*` would be represented as the
@@ -11,17 +12,18 @@ pub enum Segment {
     Dot,
     /// represented by any free text in the route spec, this matches
     /// exactly that text
-    Exact(String),
+    Exact(SmartString),
     /// represented by :name, where name is how the capture will be
     /// available in [`Captures`][crate::Captures]. Param captures up to the next slash
     /// or dot, whichever is next in the spec.
-    Param(String),
+    Param(SmartString),
     /// represented by * in the spec, this will capture everything up
     /// to the end of the path. a wildcard will also match nothing
     /// (similar to the regex `(.*)$`). There can only be one wildcard
     /// per route spec
     Wildcard,
 }
+
 impl PartialOrd for Segment {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
@@ -41,6 +43,7 @@ impl Ord for Segment {
             | (Param(_), Param(_))
             | (Wildcard, Wildcard) => Equal,
 
+            (Dot, _) => Greater,
             (Exact(_), _) => Greater,
             (Param(_), Exact(_)) => Less,
             (Param(_), _) => Greater,
