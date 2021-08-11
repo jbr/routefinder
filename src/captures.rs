@@ -123,6 +123,17 @@ impl<'key, 'value> From<(&'key str, &'value str)> for Capture<'key, 'value> {
     }
 }
 
+impl<'pair, 'key: 'pair, 'value: 'pair> From<&'pair (&'key str, &'value str)>
+    for Capture<'key, 'value>
+{
+    fn from(kv: &'pair (&'key str, &'value str)) -> Self {
+        Self {
+            key: kv.0.into(),
+            value: kv.1.into(),
+        }
+    }
+}
+
 impl<'keys, 'values, F> From<F> for Captures<'keys, 'values>
 where
     F: IntoIterator<Item = (&'keys str, &'values str)>,
@@ -134,6 +145,17 @@ where
 
 impl<'keys, 'values> FromIterator<(&'keys str, &'values str)> for Captures<'keys, 'values> {
     fn from_iter<T: IntoIterator<Item = (&'keys str, &'values str)>>(iter: T) -> Self {
+        Self {
+            params: iter.into_iter().map(Into::into).collect(),
+            wildcard: None,
+        }
+    }
+}
+
+impl<'pair, 'keys: 'pair, 'values: 'pair> FromIterator<&'pair (&'keys str, &'values str)>
+    for Captures<'keys, 'values>
+{
+    fn from_iter<T: IntoIterator<Item = &'pair (&'keys str, &'values str)>>(iter: T) -> Self {
         Self {
             params: iter.into_iter().map(Into::into).collect(),
             wildcard: None,

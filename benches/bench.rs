@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 use routefinder::*;
 
@@ -20,18 +20,24 @@ fn benchmark(c: &mut Criterion) {
         b.iter(|| router.best_match("/posts/100/comments"))
     });
 
-    c.bench_function("/posts/n", |b| b.iter(|| router.best_match("/posts/100")));
+    c.bench_function("/posts/n", |b| {
+        b.iter(|| router.best_match(black_box("/posts/100")))
+    });
 
-    c.bench_function("/posts", |b| b.iter(|| router.best_match("/posts")));
+    c.bench_function("/posts", |b| {
+        b.iter(|| router.best_match(black_box("/posts")))
+    });
 
-    c.bench_function("/comments", |b| b.iter(|| router.best_match("/comments")));
+    c.bench_function("/comments", |b| {
+        b.iter(|| router.best_match(black_box("/comments")))
+    });
 
     c.bench_function("/comments/n", |b| {
-        b.iter(|| router.best_match("/comments/100"))
+        b.iter(|| router.best_match(black_box("/comments/100")))
     });
 
     c.bench_function("fallthrough", |b| {
-        b.iter(|| router.best_match("/a/b/c/d/e/f"))
+        b.iter(|| router.best_match(black_box("/a/b/c/d/e/f")))
     });
 }
 

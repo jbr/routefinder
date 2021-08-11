@@ -1,10 +1,13 @@
-#![forbid(unsafe_code, future_incompatible)]
+#![forbid(unsafe_code)]
 #![deny(
+    clippy::dbg_macro,
+    missing_copy_implementations,
+    rustdoc::missing_crate_level_docs,
     missing_debug_implementations,
     nonstandard_style,
-    missing_copy_implementations,
     unused_qualifications
 )]
+#![warn(missing_docs)]
 
 //! # Routefinder
 //!
@@ -27,11 +30,6 @@
 //! assert_eq!(router.matches("/hello").len(), 3);
 //! assert_eq!(router.matches("/").len(), 1);
 //!
-//! // reverse lookup
-//! let captures = Captures::from(vec![("world", "jupiter")]);
-//! let reverse_match = router.best_reverse_match(&captures).unwrap();
-//! assert_eq!(*reverse_match, 4);
-//! assert_eq!(reverse_match.to_string(), "/hey/jupiter");
 //! # Ok(()) }
 //! ```
 //!
