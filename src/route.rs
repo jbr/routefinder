@@ -238,14 +238,13 @@ impl FromStr for RouteSpec {
                 let segment = match (section.chars().next(), section.len()) {
                     (Some('*'), 1) => Some(Segment::Wildcard),
                     (Some('*'), _) => {
-                        let message = format!(
+                        return Err(format!(
                             concat!(
                                 "since there can only be one wildcard,",
                                 " it doesn't need a name. replace `{}` with `*`"
                             ),
                             section
-                        );
-                        return Err(message);
+                        ));
                     }
                     (Some(':'), 1) => {
                         return Err(String::from("params must be named"));
