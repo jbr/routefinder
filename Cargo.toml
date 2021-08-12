@@ -12,6 +12,7 @@ keywords = ["router"]
 categories = ["web-programming::http-server", "web-programming"]
 
 [dependencies]
+smartcow = "0.1.0"
 smartstring = "0.2.9"
 
 [dev-dependencies]
