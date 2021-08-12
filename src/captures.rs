@@ -1,3 +1,4 @@
+use smartcow::SmartCow;
 use std::{
     borrow::Cow,
     iter::FromIterator,
@@ -7,8 +8,8 @@ use std::{
 /// An individual key-value pair
 #[derive(Debug, Default)]
 pub struct Capture<'key, 'value> {
-    key: Cow<'key, str>,
-    value: Cow<'value, str>,
+    key: SmartCow<'key>,
+    value: SmartCow<'value>,
 }
 
 impl<'key, 'value> Capture<'key, 'value> {
@@ -16,19 +17,19 @@ impl<'key, 'value> Capture<'key, 'value> {
     /// &str here is preferable, but a String will also work.
     pub fn new(key: impl Into<Cow<'key, str>>, value: impl Into<Cow<'value, str>>) -> Self {
         Self {
-            key: key.into(),
-            value: value.into(),
+            key: key.into().into(),
+            value: value.into().into(),
         }
     }
 
     /// returns the name of this capture
     pub fn name(&self) -> &str {
-        &self.key
+        &*self.key
     }
 
     /// returns the value of this capture
     pub fn value(&self) -> &str {
-        &self.value
+        &*self.value
     }
 
     /// transforms this potentially-borrowed Capture into a 'static
@@ -37,8 +38,8 @@ impl<'key, 'value> Capture<'key, 'value> {
     /// a particular application
     pub fn into_owned(self) -> Capture<'static, 'static> {
         Capture {
-            key: self.key.to_string().into(),
-            value: self.value.to_string().into(),
+            key: self.key.into_owned(),
+            value: self.value.into_owned(),
         }
     }
 }
@@ -47,7 +48,7 @@ impl<'key, 'value> Capture<'key, 'value> {
 #[derive(Debug, Default)]
 pub struct Captures<'keys, 'values> {
     pub(crate) params: Vec<Capture<'keys, 'values>>,
-    pub(crate) wildcard: Option<Cow<'values, str>>,
+    pub(crate) wildcard: Option<SmartCow<'values>>,
 }
 
 impl<'keys, 'values> Captures<'keys, 'values> {
@@ -63,7 +64,7 @@ impl<'keys, 'values> Captures<'keys, 'values> {
     pub fn into_owned(self) -> Captures<'static, 'static> {
         Captures {
             params: self.params.into_iter().map(|c| c.into_owned()).collect(),
-            wildcard: self.wildcard.map(|c| c.to_string().into()),
+            wildcard: self.wildcard.map(SmartCow::into_owned),
         }
     }
 
@@ -75,7 +76,7 @@ impl<'keys, 'values> Captures<'keys, 'values> {
     /// set the captured wildcard to the provided &str or
     /// String. Prefer passing a &str if available.
     pub fn set_wildcard(&mut self, wildcard: impl Into<Cow<'values, str>>) {
-        self.wildcard = Some(wildcard.into());
+        self.wildcard = Some(wildcard.into().into());
     }
 
     /// returns what the * wildcard matched, if any
