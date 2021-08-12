@@ -92,11 +92,11 @@ impl<T> Route<T> {
 
 /// Routefinder's representation of the parsed route
 ///
-/// This contains both the source string (or unique description) and
+/// This contains both an optional source string (or unique description) and
 /// an ordered sequence of [`Segment`]s
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct RouteSpec {
-    source: SmartString,
+    source: Option<SmartString>,
     segments: Vec<Segment>,
 }
 
@@ -117,18 +117,23 @@ impl Display for RouteSpec {
 }
 
 impl RouteSpec {
-    pub(crate) fn new(source: &str, segments: Vec<Segment>) -> Self {
-        Self {
-            source: SmartString::from(source),
-            segments,
-        }
-    }
-
     fn dots(&self) -> usize {
         self.segments
             .iter()
             .filter(|c| matches!(c, Segment::Dot))
             .count()
+    }
+
+    /// Retrieve a reference to the original route definition, if this
+    /// routespec was parsed from a string representation. If this
+    /// routespec was created another way, this will return None.
+    pub fn source(&self) -> Option<&str> {
+        self.source.as_deref()
+    }
+
+    /// Slice accessor for the component [`Segment`]s in this RouteSpec
+    pub fn segments(&self) -> &[Segment] {
+        self.segments.as_slice()
     }
 
     #[inline]
@@ -272,7 +277,10 @@ impl FromStr for RouteSpec {
                 Ok(acc)
             })?;
 
-        Ok(RouteSpec::new(source, segments))
+        Ok(Self {
+            source: Some(SmartString::from(source)),
+            segments,
+        })
     }
 }
 
@@ -295,7 +303,7 @@ impl From<Vec<Segment>> for RouteSpec {
     fn from(segments: Vec<Segment>) -> Self {
         Self {
             segments,
-            source: SmartString::new(),
+            source: None,
         }
     }
 }
