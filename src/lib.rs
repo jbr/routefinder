@@ -43,7 +43,7 @@ mod r#match;
 pub use r#match::Match;
 
 mod route;
-pub use route::{Route, RouteSpec};
+pub use route::Route;
 
 mod router;
 pub use router::Router;
@@ -53,3 +53,6 @@ pub use segment::Segment;
 
 mod reverse_match;
 pub use reverse_match::ReverseMatch;
+
+mod route_spec;
+pub use route_spec::RouteSpec;
