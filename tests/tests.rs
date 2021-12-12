@@ -16,12 +16,12 @@ fn it_works() -> Result {
     assert_eq!(
         &format!("{:#?}", &router),
         r#"{
-    Route(/*),
-    Route(/:greeting/:world/*),
-    Route(/:greeting),
-    Route(/hey/:world),
-    Route(/hey/earth),
-    Route(/hello),
+    /hello,
+    /hey/earth,
+    /hey/:world,
+    /:greeting,
+    /:greeting/:world/*,
+    /*,
 }"#
     );
 
@@ -178,7 +178,7 @@ fn parse() -> Result {
 #[test]
 fn templating() -> Result {
     assert_eq!(
-        Route::new(":a/:b.:c", ())?
+        RouteSpec::from_str(":a/:b.:c")?
             .template(&[("a", "users"), ("b", "jbr"), ("c", "txt")].into())
             .unwrap()
             .to_string(),
@@ -221,8 +221,8 @@ fn specific_matches() -> Result {
 
 #[test]
 fn priority() -> Result {
-    assert!(RouteSpec::from_str("exact")? > RouteSpec::from_str(":param")?);
-    assert!(RouteSpec::from_str("a")? > RouteSpec::from_str("a/b")?);
-    assert!(RouteSpec::from_str(":a.:b")? > RouteSpec::from_str(":a")?);
+    assert!(RouteSpec::from_str("exact")? < RouteSpec::from_str(":param")?);
+    assert!(RouteSpec::from_str("a")? < RouteSpec::from_str("a/b")?);
+    assert!(RouteSpec::from_str(":a.:b")? < RouteSpec::from_str(":a")?);
     Ok(())
 }

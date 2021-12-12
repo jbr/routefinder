@@ -1,20 +1,18 @@
-use std::ops::Deref;
-
-use crate::{Captures, Route, Segment};
+use crate::{Captures, RouteSpec, Segment};
 /// This struct represents the result of a reverse lookup from
-/// [`Captures`] to a [`Route`]
+/// [`Captures`] to a [`RouteSpec`]
 #[derive(Debug, Clone, Copy)]
-pub struct ReverseMatch<'keys, 'values, 'captures, 'route, T> {
-    route: &'route Route<T>,
+pub struct ReverseMatch<'keys, 'values, 'captures, 'route> {
+    route: &'route RouteSpec,
     captures: &'captures Captures<'keys, 'values>,
 }
 
-impl<'keys, 'values, 'captures, 'route, T> ReverseMatch<'keys, 'values, 'captures, 'route, T> {
+impl<'keys, 'values, 'captures, 'route> ReverseMatch<'keys, 'values, 'captures, 'route> {
     /// Attempts to build a new ReverseMatch. Returns None if the
     /// match was unsuccessful.
     pub fn new(
         captures: &'captures Captures<'keys, 'values>,
-        route: &'route Route<T>,
+        route: &'route RouteSpec,
     ) -> Option<Self> {
         let all_params_matched = route
             .segments()
@@ -38,19 +36,19 @@ impl<'keys, 'values, 'captures, 'route, T> ReverseMatch<'keys, 'values, 'capture
         Some(Self { route, captures })
     }
 
-    /// Returns the Route for this ReverseMatch
-    pub fn route(&self) -> &Route<T> {
+    /// Returns the [`RouteSpec`] for this ReverseMatch
+    pub fn route(&self) -> &RouteSpec {
         self.route
     }
 
-    /// Returns the Captures for this ReverseMatch
+    /// Returns the [`Captures`] for this ReverseMatch
     pub fn captures(&self) -> &Captures {
         self.captures
     }
 }
 
-impl<'keys, 'values, 'captures, 'route, T> std::fmt::Display
-    for ReverseMatch<'keys, 'values, 'captures, 'route, T>
+impl<'keys, 'values, 'captures, 'route> std::fmt::Display
+    for ReverseMatch<'keys, 'values, 'captures, 'route>
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("/")?;
@@ -64,15 +62,5 @@ impl<'keys, 'values, 'captures, 'route, T> std::fmt::Display
             };
         }
         Ok(())
-    }
-}
-
-impl<'keys, 'values, 'captures, 'route, T> Deref
-    for ReverseMatch<'keys, 'values, 'captures, 'route, T>
-{
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        self.route.handler()
     }
 }

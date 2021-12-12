@@ -1,27 +1,33 @@
-use crate::{Capture, Captures, Route, RouteSpec, Segment};
+use crate::{Capture, Captures, RouteSpec, Segment};
 use std::{cmp::Ordering, ops::Deref};
 
-/// The output of a successful application of a
-/// [`Route`] to a str path, as well as references to any captures.
+/// The output of a successful application of a [`RouteSpec`] to a str
+/// path, as well as references to any captures.
 ///
-/// It dereferences to the contained type T
+/// It dereferences to the contained Handler type
 
 #[derive(Debug)]
-pub struct Match<'router, 'path, T> {
+pub struct Match<'router, 'path, Handler> {
     pub(crate) path: &'path str,
-    pub(crate) route: &'router Route<T>,
+    pub(crate) route: &'router RouteSpec,
     pub(crate) captures: Vec<&'path str>,
+    pub(crate) handler: &'router Handler,
 }
 
-impl<'router, 'path, T> Match<'router, 'path, T> {
+impl<'router, 'path, Handler> Match<'router, 'path, Handler> {
     /// Returns a reference to the handler associated with this route
-    pub fn handler(&self) -> &'router T {
-        self.route.handler()
+    pub fn handler(&self) -> &'router Handler {
+        self.handler
     }
 
     /// Returns the routespec for this route
     pub fn route(&self) -> &'router RouteSpec {
-        self.route.definition()
+        self.route
+    }
+
+    /// returns the exact path that was matched
+    pub fn path(&self) -> &'path str {
+        self.path
     }
 
     /// Returns the [`Captures`] for this match
@@ -49,30 +55,30 @@ impl<'router, 'path, T> Match<'router, 'path, T> {
     }
 }
 
-impl<'router, 'path, T> PartialEq for Match<'router, 'path, T> {
+impl<'router, 'path, Handler> PartialEq for Match<'router, 'path, Handler> {
     fn eq(&self, other: &Self) -> bool {
         *other.route == *self.route
     }
 }
 
-impl<'router, 'path, T> Eq for Match<'router, 'path, T> {}
+impl<'router, 'path, Handler> Eq for Match<'router, 'path, Handler> {}
 
-impl<'router, 'path, T> PartialOrd for Match<'router, 'path, T> {
+impl<'router, 'path, Handler> PartialOrd for Match<'router, 'path, Handler> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<'router, 'path, T> Ord for Match<'router, 'path, T> {
+impl<'router, 'path, Handler> Ord for Match<'router, 'path, Handler> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.route.cmp(other.route)
     }
 }
 
-impl<'router, 'path, T> Deref for Match<'router, 'path, T> {
-    type Target = T;
+impl<'router, 'path, Handler> Deref for Match<'router, 'path, Handler> {
+    type Target = Handler;
 
     fn deref(&self) -> &Self::Target {
-        self.route.handler()
+        self.handler
     }
 }

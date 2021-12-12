@@ -1,8 +1,8 @@
-use crate::{Segment};
+use crate::{Captures, ReverseMatch, Segment};
 use smartstring::alias::String as SmartString;
 use std::{
     cmp::Ordering,
-    convert::{TryFrom},
+    convert::TryFrom,
     fmt::{self, Debug, Display, Formatter},
     iter,
     str::FromStr,
@@ -137,6 +137,15 @@ impl RouteSpec {
             None
         }
     }
+
+    /// populate this route spec with the params and/or wildcard from
+    /// a [`Captures`], if it matches.
+    pub fn template<'route, 'keys, 'captures, 'values>(
+        &'route self,
+        captures: &'captures Captures<'keys, 'values>,
+    ) -> Option<ReverseMatch<'keys, 'values, 'captures, 'route>> {
+        ReverseMatch::new(captures, self)
+    }
 }
 
 impl FromStr for RouteSpec {
@@ -244,5 +253,6 @@ impl Ord for RouteSpec {
             }))
             .find(|c| *c != Ordering::Equal)
             .unwrap_or(Ordering::Less)
+            .reverse()
     }
 }
