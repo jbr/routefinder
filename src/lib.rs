@@ -42,9 +42,6 @@ pub use captures::{Capture, Captures};
 mod r#match;
 pub use r#match::Match;
 
-mod route;
-pub use route::Route;
-
 mod router;
 pub use router::Router;
 

@@ -1,9 +1,12 @@
-use crate::{Match, Route, RouteSpec};
+use crate::{Match, RouteSpec};
 use std::{
-    collections::{btree_set::Iter as BTreeSetIter, BTreeSet},
+    collections::{
+        btree_map::{IntoIter, Iter, IterMut},
+        BTreeMap,
+    },
     convert::TryInto,
     fmt::{self, Debug, Formatter},
-    iter::Rev,
+    iter::FromIterator,
 };
 
 /// The top level struct for routefinder
@@ -12,35 +15,66 @@ use std::{
 /// to a given request path, and any handler T that is associated with
 /// each route
 
-pub struct Router<T> {
-    routes: BTreeSet<Route<T>>,
+pub struct Router<Handler> {
+    routes: BTreeMap<RouteSpec, Handler>,
 }
 
-impl<T> Debug for Router<T> {
+impl<Handler> Debug for Router<Handler> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_set().entries(self.routes.iter()).finish()
+        let mut debug_set = f.debug_set();
+        for route in self.routes.keys() {
+            debug_set.entry(&format_args!("{}", route));
+        }
+        debug_set.finish()
     }
 }
 
-impl<T> Default for Router<T> {
+impl<Handler> Default for Router<Handler> {
     fn default() -> Self {
         Self {
-            routes: BTreeSet::new(),
+            routes: Default::default(),
         }
     }
 }
 
-impl<'a, T: 'a> IntoIterator for &'a Router<T> {
-    type Item = &'a Route<T>;
-
-    type IntoIter = Rev<BTreeSetIter<'a, Route<T>>>;
+impl<Handler> IntoIterator for Router<Handler> {
+    type Item = (RouteSpec, Handler);
+    type IntoIter = IntoIter<RouteSpec, Handler>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.routes.iter().rev()
+        self.routes.into_iter()
     }
 }
 
-impl<T> Router<T> {
+impl<'a, Handler: 'a> IntoIterator for &'a Router<Handler> {
+    type Item = (&'a RouteSpec, &'a Handler);
+
+    type IntoIter = Iter<'a, RouteSpec, Handler>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.routes.iter()
+    }
+}
+
+impl<'a, Handler: 'a> IntoIterator for &'a mut Router<Handler> {
+    type Item = (&'a RouteSpec, &'a mut Handler);
+
+    type IntoIter = IterMut<'a, RouteSpec, Handler>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.routes.iter_mut()
+    }
+}
+
+impl<Handler> FromIterator<(RouteSpec, Handler)> for Router<Handler> {
+    fn from_iter<T: IntoIterator<Item = (RouteSpec, Handler)>>(iter: T) -> Self {
+        Self {
+            routes: iter.into_iter().collect(),
+        }
+    }
+}
+
+impl<Handler> Router<Handler> {
     /// Builds a new router
     ///
     /// ```rust
@@ -60,11 +94,15 @@ impl<T> Router<T> {
     /// assert!(router.add("*", ()).is_ok());
     /// assert!(router.add(format!("/dynamic/{}", "route"), ()).is_ok());
     /// ```
-    pub fn add<R>(&mut self, route: R, handler: T) -> Result<(), <R as TryInto<RouteSpec>>::Error>
+    pub fn add<R>(
+        &mut self,
+        route: R,
+        handler: Handler,
+    ) -> Result<(), <R as TryInto<RouteSpec>>::Error>
     where
         R: TryInto<RouteSpec>,
     {
-        self.routes.insert(Route::new(route, handler)?);
+        self.routes.insert(route.try_into()?, handler);
         Ok(())
     }
 
@@ -88,11 +126,15 @@ impl<T> Router<T> {
     /// assert_eq!(*router.best_match("/hey/there").unwrap(), 0);
     /// assert_eq!(*router.best_match("/").unwrap(), 0);
     /// ```
-    pub fn best_match<'a, 'b>(&'a self, path: &'b str) -> Option<Match<'a, 'b, T>> {
-        self.routes
-            .iter()
-            .rev()
-            .find_map(|route| route.matches(path))
+    pub fn best_match<'a, 'b>(&'a self, path: &'b str) -> Option<Match<'a, 'b, Handler>> {
+        self.routes.iter().find_map(|(route, handler)| {
+            route.matches(path).map(|captures| Match {
+                path,
+                route,
+                captures,
+                handler,
+            })
+        })
     }
 
     /// Returns _all_ of the matching routes for a given path. This is
@@ -111,11 +153,72 @@ impl<T> Router<T> {
     /// assert_eq!(router.matches("/hey").len(), 2);
     /// assert_eq!(router.matches("/hey/there").len(), 1);
     /// ```
-    pub fn matches<'a, 'b>(&'a self, path: &'b str) -> Vec<Match<'a, 'b, T>> {
+    pub fn matches<'a, 'b>(&'a self, path: &'b str) -> Vec<Match<'a, 'b, Handler>> {
         self.routes
             .iter()
-            .rev()
-            .filter_map(|route| route.matches(path))
+            .filter_map(|(route, handler)| {
+                route.matches(path).map(|captures| Match {
+                    path,
+                    route,
+                    captures,
+                    handler,
+                })
+            })
             .collect()
+    }
+
+    /// returns an iterator of references to `(&RouteSpec, &Handler)`
+    ///
+    /// ```
+    /// let mut router = routefinder::Router::new();
+    /// router.add("*", 1).unwrap();
+    /// router.add("/:param", 2).unwrap();
+    /// router.add("/hello", 3).unwrap();
+    /// let (route, handler) = router.iter().next().unwrap();
+    /// assert_eq!(route.to_string(), "/hello");
+    /// assert_eq!(handler, &3);
+    /// ```
+    pub fn iter(&self) -> impl Iterator<Item = (&RouteSpec, &Handler)> {
+        self.into_iter()
+    }
+
+    /// returns an iterator of `(&RouteSpec, &mut Handler)`
+    ///
+    /// ```
+    /// let mut router = routefinder::Router::new();
+    /// router.add("*", 1).unwrap();
+    /// router.add("/:param", 2).unwrap();
+    /// router.add("/hello", 3).unwrap();
+    ///
+    /// assert_eq!(*router.best_match("/hello").unwrap(), 3);
+    /// let (route, handler) = router.iter_mut().next().unwrap();
+    /// assert_eq!(route.to_string(), "/hello");
+    /// *handler = 10;
+    /// assert_eq!(*router.best_match("/hello").unwrap(), 10);
+    /// ```
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&RouteSpec, &mut Handler)> {
+        self.into_iter()
+    }
+
+    /// returns the number of routes that have been added
+    pub fn len(&self) -> usize {
+        self.routes.len()
+    }
+
+    /// returns true if no routes have been added
+    pub fn is_empty(&self) -> bool {
+        self.routes.is_empty()
+    }
+
+    /// get a reference to the handler for the given route spec
+    pub fn get_handler(&self, spec: impl TryInto<RouteSpec>) -> Option<&Handler> {
+        spec.try_into().ok().and_then(|sp| self.routes.get(&sp))
+    }
+
+    /// get a mut reference to the handler for the given route spec
+    pub fn get_handler_mut(&mut self, spec: impl TryInto<RouteSpec>) -> Option<&mut Handler> {
+        spec.try_into()
+            .ok()
+            .and_then(move |sp| self.routes.get_mut(&sp))
     }
 }
