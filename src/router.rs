@@ -127,14 +127,7 @@ impl<Handler> Router<Handler> {
     /// assert_eq!(*router.best_match("/").unwrap(), 0);
     /// ```
     pub fn best_match<'a, 'b>(&'a self, path: &'b str) -> Option<Match<'a, 'b, Handler>> {
-        self.routes.iter().find_map(|(route, handler)| {
-            route.matches(path).map(|captures| Match {
-                path,
-                route,
-                captures,
-                handler,
-            })
-        })
+        self.match_iter(path).next()
     }
 
     /// Returns _all_ of the matching routes for a given path. This is
@@ -154,20 +147,22 @@ impl<Handler> Router<Handler> {
     /// assert_eq!(router.matches("/hey/there").len(), 1);
     /// ```
     pub fn matches<'a, 'b>(&'a self, path: &'b str) -> Vec<Match<'a, 'b, Handler>> {
-        self.routes
-            .iter()
-            .filter_map(|(route, handler)| {
-                route.matches(path).map(|captures| Match {
-                    path,
-                    route,
-                    captures,
-                    handler,
-                })
-            })
-            .collect()
+        self.match_iter(path).collect()
     }
 
-    /// returns an iterator of references to `(&RouteSpec, &Handler)`
+    /// Returns an iterator over the possible matches for this
+    /// particular path. Because rust iterators are lazy, this is
+    /// useful for some filtering operations that might otherwise use
+    /// [`Router::matches`], which is this iterator collected into a
+    /// vec.
+    pub fn match_iter<'a, 'b>(&'a self, path: &'b str) -> MatchIter<'a, 'b, Handler> {
+        MatchIter {
+            iter: self.routes.iter(),
+            path,
+        }
+    }
+
+    /// Returns an iterator of references to `(&RouteSpec, &Handler)`
     ///
     /// ```
     /// let mut router = routefinder::Router::new();
@@ -220,5 +215,31 @@ impl<Handler> Router<Handler> {
         spec.try_into()
             .ok()
             .and_then(move |sp| self.routes.get_mut(&sp))
+    }
+}
+
+/// an iterator over matches for a given path. returned by [`Router::match_iter`]
+#[derive(Debug)]
+pub struct MatchIter<'a, 'b, Handler> {
+    iter: Iter<'a, RouteSpec, Handler>,
+    path: &'b str,
+}
+impl<'a, 'b, Handler> Iterator for MatchIter<'a, 'b, Handler> {
+    type Item = Match<'a, 'b, Handler>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let path = self.path;
+        self.iter.find_map(|(route, handler)| {
+            route.matches(path).map(|captures| Match {
+                path,
+                route,
+                captures,
+                handler,
+            })
+        })
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
     }
 }
