@@ -12,8 +12,8 @@ keywords = ["router"]
 categories = ["web-programming::http-server", "web-programming"]
 
 [dependencies]
-smartcow = "0.1.0"
-smartstring = "0.2.9"
+smartcow = "0.2.0"
+smartstring = "1.0.0"
 
 [dev-dependencies]
 criterion = { version = "0.3.5", features = ["html_reports"] }
