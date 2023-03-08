@@ -99,6 +99,17 @@ impl<'keys, 'values> Captures<'keys, 'values> {
     pub fn push(&mut self, capture: impl Into<Capture<'keys, 'values>>) {
         self.params.push(capture.into());
     }
+
+    /// Combine two captures
+    pub fn append(&mut self, mut captures: Captures<'keys, 'values>) {
+        self.params.append(&mut captures.params);
+        self.wildcard = captures.wildcard;
+    }
+
+    /// Iterate over params as str pairs
+    pub fn iter(&self) -> Iter<'_, '_, '_> {
+        self.into()
+    }
 }
 
 impl<'keys, 'values> Deref for Captures<'keys, 'values> {
@@ -144,19 +155,10 @@ where
     }
 }
 
-impl<'keys, 'values> FromIterator<(&'keys str, &'values str)> for Captures<'keys, 'values> {
-    fn from_iter<T: IntoIterator<Item = (&'keys str, &'values str)>>(iter: T) -> Self {
-        Self {
-            params: iter.into_iter().map(Into::into).collect(),
-            wildcard: None,
-        }
-    }
-}
-
-impl<'pair, 'keys: 'pair, 'values: 'pair> FromIterator<&'pair (&'keys str, &'values str)>
+impl<'keys, 'values, I: Into<Capture<'keys, 'values>>> FromIterator<I>
     for Captures<'keys, 'values>
 {
-    fn from_iter<T: IntoIterator<Item = &'pair (&'keys str, &'values str)>>(iter: T) -> Self {
+    fn from_iter<T: IntoIterator<Item = I>>(iter: T) -> Self {
         Self {
             params: iter.into_iter().map(Into::into).collect(),
             wildcard: None,
@@ -164,10 +166,50 @@ impl<'pair, 'keys: 'pair, 'values: 'pair> FromIterator<&'pair (&'keys str, &'val
     }
 }
 
-impl<'keys, 'values> Extend<(&'keys str, &'values str)> for Captures<'keys, 'values> {
-    fn extend<T: IntoIterator<Item = (&'keys str, &'values str)>>(&mut self, iter: T) {
-        for (k, v) in iter {
-            self.params.push(Capture::new(k, v));
-        }
+impl<'keys, 'values, I: Into<Capture<'keys, 'values>>> Extend<I> for Captures<'keys, 'values> {
+    fn extend<T: IntoIterator<Item = I>>(&mut self, iter: T) {
+        self.params.extend(iter.into_iter().map(Into::into));
+    }
+}
+
+impl<'keys, 'values> IntoIterator for Captures<'keys, 'values> {
+    type Item = Capture<'keys, 'values>;
+
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.params.into_iter()
+    }
+}
+
+#[derive(Debug)]
+pub struct Iter<'captures: 'keys + 'values, 'keys, 'values>(
+    std::slice::Iter<'captures, Capture<'keys, 'values>>,
+);
+impl<'captures: 'keys + 'values, 'keys, 'values> Iterator for Iter<'captures, 'keys, 'values> {
+    type Item = (&'keys str, &'values str);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|c| (c.name(), c.value()))
+    }
+}
+
+impl<'captures: 'keys + 'values, 'keys, 'values> From<&'captures Captures<'keys, 'values>>
+    for Iter<'captures, 'keys, 'values>
+{
+    fn from(value: &'captures Captures<'keys, 'values>) -> Self {
+        Iter(value.params.iter())
+    }
+}
+
+impl<'captures: 'keys + 'values, 'keys, 'values> IntoIterator
+    for &'captures Captures<'keys, 'values>
+{
+    type Item = (&'keys str, &'values str);
+
+    type IntoIter = Iter<'captures, 'keys, 'values>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.into()
     }
 }
