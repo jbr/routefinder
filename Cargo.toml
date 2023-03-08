@@ -1,6 +1,6 @@
 [package]
 name = "routefinder"
-version = "0.5.2"
+version = "0.5.3"
 authors = ["Jacob Rothstein <hi@jbr.me>"]
 edition = "2018"
 description = "router"
