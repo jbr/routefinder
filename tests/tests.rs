@@ -1,5 +1,5 @@
 type Result = std::result::Result<(), Box<dyn std::error::Error>>;
-use std::str::FromStr;
+use std::{iter::FromIterator, str::FromStr};
 
 use routefinder::*;
 
@@ -225,4 +225,35 @@ fn priority() -> Result {
     assert!(RouteSpec::from_str("a")? < RouteSpec::from_str("a/b")?);
     assert!(RouteSpec::from_str(":a.:b")? < RouteSpec::from_str(":a")?);
     Ok(())
+}
+
+#[test]
+fn extend_captures() {
+    let mut captures = Captures::from_iter([("key", "value")]);
+    let other_captures = Captures::from_iter([("key2", "value2")]);
+
+    captures.extend(other_captures);
+
+    assert_eq!(
+        captures.iter().collect::<Vec<_>>(),
+        [("key", "value"), ("key2", "value2")]
+    );
+}
+
+#[test]
+fn append_captures() {
+    let mut captures = Captures::from_iter([("key", "value")]);
+    captures.set_wildcard("something");
+
+    let mut other_captures = Captures::from_iter([("key2", "value2")]);
+    other_captures.set_wildcard("other");
+
+    captures.append(other_captures);
+
+    assert_eq!(
+        captures.iter().collect::<Vec<_>>(),
+        [("key", "value"), ("key2", "value2")]
+    );
+
+    assert_eq!(Some("other"), captures.wildcard());
 }
