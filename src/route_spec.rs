@@ -55,14 +55,14 @@ impl RouteSpec {
     }
 
     #[inline]
-    fn inner_match<'router, 'path>(
-        &'router self,
+    fn inner_match<'path>(
+        &self,
         mut path: &'path str,
         captures: &mut Vec<&'path str>,
     ) -> Option<&'path str> {
         let mut peek = self.segments.iter().peekable();
         while let Some(segment) = peek.next() {
-            path = match &*segment {
+            path = match segment {
                 Segment::Exact(e) => {
                     if path.starts_with(&**e) {
                         &path[e.len()..]
@@ -127,7 +127,7 @@ impl RouteSpec {
 
     /// Returns a vec of captured str slices for this routespec
     #[inline]
-    pub fn matches<'router, 'path>(&'router self, path: &'path str) -> Option<Vec<&'path str>> {
+    pub fn matches<'path>(&self, path: &'path str) -> Option<Vec<&'path str>> {
         let mut p = path.trim_start_matches('/').trim_end_matches('/');
         let mut captures = vec![];
         p = self.inner_match(p, &mut captures)?;
