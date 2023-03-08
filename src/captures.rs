@@ -24,12 +24,12 @@ impl<'key, 'value> Capture<'key, 'value> {
 
     /// returns the name of this capture
     pub fn name(&self) -> &str {
-        &*self.key
+        &self.key
     }
 
     /// returns the value of this capture
     pub fn value(&self) -> &str {
-        &*self.value
+        &self.value
     }
 
     /// transforms this potentially-borrowed Capture into a 'static

@@ -1,7 +1,7 @@
 use routefinder::{Captures, Router};
 
 pub fn main() -> Result<(), String> {
-    let mut router: Router<Box<dyn Fn(Captures) -> String>> = Router::new();
+    let mut router = Router::<Box<dyn Fn(Captures) -> String>>::new();
 
     router.add(
         "/*",
