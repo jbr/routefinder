@@ -240,6 +240,6 @@ impl<'a, 'b, Handler> Iterator for MatchIter<'a, 'b, Handler> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.iter.size_hint()
+        (0, self.iter.size_hint().1)
     }
 }
