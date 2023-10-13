@@ -29,6 +29,10 @@
 //! );
 //! assert_eq!(router.matches("/hello").len(), 3);
 //! assert_eq!(router.matches("/").len(), 1);
+//! assert_eq!(
+//!     router.best_match("/yo/planet/check/this/out").unwrap().captures().wildcard().unwrap(),
+//!     "check/this/out",
+//! );
 //!
 //! # Ok(()) }
 //! ```
