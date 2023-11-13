@@ -12,6 +12,7 @@ keywords = ["router"]
 categories = ["web-programming::http-server", "web-programming"]
 
 [dependencies]
+memchr = "2.6.4"
 smartcow = "0.2.1"
 smartstring = "1.0.1"
 

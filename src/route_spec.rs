@@ -77,13 +77,15 @@ impl RouteSpec {
                     }
                     match peek.peek() {
                         None | Some(Segment::Slash) => {
-                            let capture = path.split('/').next()?;
+                            let capture = memchr::memchr(b'/', path.as_bytes())
+                                .map(|index| &path[..index])
+                                .unwrap_or(path);
                             captures.push(capture);
                             &path[capture.len()..]
                         }
 
                         Some(Segment::Dot) => {
-                            let index = path.find(|c| c == '.' || c == '/')?;
+                            let index = memchr::memchr2(b'.', b'/', path.as_bytes())?;
                             if path.chars().nth(index) == Some('.') {
                                 captures.push(&path[..index]);
                                 &path[index..] // we leave the dot so it can be matched by the Segment::Dot
@@ -154,10 +156,9 @@ impl FromStr for RouteSpec {
     fn from_str(source: &str) -> Result<Self, Self::Err> {
         let mut last_index = 0;
         let source_trimmed = source.trim_start_matches('/').trim_end_matches('/');
-        let segments = source_trimmed
-            .match_indices(|c| c == '.' || c == '/')
-            .chain(iter::once_with(|| (source_trimmed.len(), "/")))
-            .try_fold(vec![], |mut acc, (index, _c)| {
+        let segments = memchr::memchr2_iter(b'.', b'/', source_trimmed.as_bytes())
+            .chain(iter::once_with(|| source_trimmed.len()))
+            .try_fold(vec![], |mut acc, index| {
                 let first_char = if last_index == 0 {
                     None
                 } else {
