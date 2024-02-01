@@ -34,6 +34,18 @@ jobs:
         command: test
         args: --all --no-fail-fast
 
+    - name: Run tests (memchr)
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --all --no-fail-fast --features memchr
+
+    - name: Run tests (bench)
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --bench bench
+
   check_fmt_and_docs:
     name: Lints and Docs
     runs-on: ubuntu-latest
@@ -45,10 +57,9 @@ jobs:
         components: rustfmt, clippy
         override: true
 
-    - uses: actions-rs/clippy-check@v1
+    - uses: giraffate/clippy-action@v1
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        args: --all-features
+        reporter: 'github-pr-review'
         
     - name: Format
       run: cargo fmt --all -- --check
