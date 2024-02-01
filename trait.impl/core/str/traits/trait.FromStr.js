@@ -1,0 +1,4 @@
+(function() {var implementors = {
+"routefinder":[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.75.0/core/str/traits/trait.FromStr.html\" title=\"trait core::str::traits::FromStr\">FromStr</a> for <a class=\"struct\" href=\"routefinder/struct.RouteSpec.html\" title=\"struct routefinder::RouteSpec\">RouteSpec</a>"]],
+"smartstring":[["impl&lt;Mode: <a class=\"trait\" href=\"smartstring/trait.SmartStringMode.html\" title=\"trait smartstring::SmartStringMode\">SmartStringMode</a>&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.75.0/core/str/traits/trait.FromStr.html\" title=\"trait core::str::traits::FromStr\">FromStr</a> for <a class=\"struct\" href=\"smartstring/struct.SmartString.html\" title=\"struct smartstring::SmartString\">SmartString</a>&lt;Mode&gt;"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

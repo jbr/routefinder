@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Segment"],"struct":["Capture","Captures","Match","ReverseMatch","RouteSpec","Router"]};

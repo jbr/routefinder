@@ -1,0 +1,1 @@
+window.ALL_CRATES = ["routefinder","smartcow","smartstring","static_assertions"];

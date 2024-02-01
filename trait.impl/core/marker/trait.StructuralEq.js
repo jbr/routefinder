@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"routefinder":[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.75.0/core/marker/trait.StructuralEq.html\" title=\"trait core::marker::StructuralEq\">StructuralEq</a> for <a class=\"struct\" href=\"routefinder/struct.RouteSpec.html\" title=\"struct routefinder::RouteSpec\">RouteSpec</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.75.0/core/marker/trait.StructuralEq.html\" title=\"trait core::marker::StructuralEq\">StructuralEq</a> for <a class=\"enum\" href=\"routefinder/enum.Segment.html\" title=\"enum routefinder::Segment\">Segment</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
