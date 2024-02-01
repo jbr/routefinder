@@ -1,5 +1,10 @@
 name: docs
 
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
 on:
   push:
     branches:
@@ -12,17 +17,28 @@ jobs:
     - uses: actions/checkout@master
     - uses: actions-rs/toolchain@v1
       with:
-        toolchain: stable
+        toolchain: nightly
         components: rustfmt, clippy
         override: true
-
+    - name: Rust Cache
+      uses: Swatinem/rust-cache@v2.7.3
     - name: Build Documentation
-      run: cargo doc --all
-
-    - name: Deploy Docs
-      uses: peaceiris/actions-gh-pages@373f7f263a76c20808c831209c920827a82a2847
+      run: >-
+        RUSTDOCFLAGS="-Z unstable-options --enable-index-page"
+        cargo +nightly doc
+        --no-deps
+        --all
+    - name: Fix permissions
+      run: |
+        chmod -c -R +rX "./target/doc" | while read line; do
+        echo "::warning title=Invalid file permissions automatically fixed::$line"
+        done
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_branch: gh-pages
-        publish_dir: ./target/doc
-        force_orphan: true
+        path: ./target/doc
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
