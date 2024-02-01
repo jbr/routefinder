@@ -11,8 +11,12 @@ license = "MIT OR Apache-2.0"
 keywords = ["router"]
 categories = ["web-programming::http-server", "web-programming"]
 
+[features]
+default = []
+memchr = ["dep:memchr"]
+
 [dependencies]
-memchr = "2.6.4"
+memchr = { version = "2.6.4", optional = true }
 smartcow = "0.2.1"
 smartstring = "1.0.1"
 
