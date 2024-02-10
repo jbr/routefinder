@@ -14,23 +14,30 @@ use std::{
 /// an ordered sequence of [`Segment`]s
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct RouteSpec {
-    source: Option<SmartString>,
+    display: SmartString,
     segments: Vec<Segment>,
 }
 
-impl Display for RouteSpec {
+struct SegmentDisplay<'a>(&'a [Segment]);
+
+impl Display for SegmentDisplay<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.write_str("/")?;
-        for segment in &self.segments {
+        for segment in self.0 {
             match segment {
                 Segment::Slash => f.write_str("/")?,
                 Segment::Dot => f.write_str(".")?,
                 Segment::Exact(s) => f.write_str(s)?,
-                Segment::Param(p) => f.write_fmt(format_args!(":{}", p))?,
+                Segment::Param(p) => f.write_fmt(format_args!(":{p}"))?,
                 Segment::Wildcard => f.write_str("*")?,
             };
         }
         Ok(())
+    }
+}
+
+impl Display for RouteSpec {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.display)
     }
 }
 
@@ -45,8 +52,9 @@ impl RouteSpec {
     /// Retrieve a reference to the original route definition, if this
     /// routespec was parsed from a string representation. If this
     /// routespec was created another way, this will return None.
+    #[deprecated = "Use AsRef<str>"]
     pub fn source(&self) -> Option<&str> {
-        self.source.as_deref()
+        Some(&self.display)
     }
 
     /// Slice accessor for the component [`Segment`]s in this RouteSpec
@@ -222,7 +230,7 @@ impl FromStr for RouteSpec {
             })?;
 
         Ok(Self {
-            source: Some(SmartString::from(source)),
+            display: SmartString::from(source),
             segments,
         })
     }
@@ -245,16 +253,22 @@ impl TryFrom<String> for RouteSpec {
 
 impl From<Vec<Segment>> for RouteSpec {
     fn from(segments: Vec<Segment>) -> Self {
-        Self {
-            segments,
-            source: None,
-        }
+        let mut display = SmartString::new();
+        use std::fmt::Write;
+        let _ = write!(display, "/{}", SegmentDisplay(&segments));
+        Self { segments, display }
     }
 }
 
 impl PartialOrd for RouteSpec {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
+    }
+}
+
+impl AsRef<str> for RouteSpec {
+    fn as_ref(&self) -> &str {
+        &self.display
     }
 }
 
