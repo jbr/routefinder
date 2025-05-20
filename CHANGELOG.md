@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.5](https://github.com/jbr/routefinder/compare/v0.5.4...v0.5.5) - 2025-05-20
+
+### Other
+
+- Bump Swatinem/rust-cache from 2.7.3 to 2.7.7
+- Bump actions/configure-pages from 4 to 5
+- *(security)* add security.md
+- *(legal)* add license files
+- *(actions)* add memchr and bench tests to ci
+
 ## [0.5.4](https://github.com/jbr/routefinder/compare/v0.5.3...v0.5.4) - 2024-02-01
 
 ### Added
