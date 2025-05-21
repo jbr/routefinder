@@ -26,7 +26,7 @@ impl Display for RouteSpec {
                 Segment::Slash => f.write_str("/")?,
                 Segment::Dot => f.write_str(".")?,
                 Segment::Exact(s) => f.write_str(s)?,
-                Segment::Param(p) => f.write_fmt(format_args!(":{}", p))?,
+                Segment::Param(p) => f.write_fmt(format_args!(":{p}"))?,
                 Segment::Wildcard => f.write_str("*")?,
             };
         }
@@ -92,7 +92,7 @@ impl RouteSpec {
                             #[cfg(feature = "memchr")]
                             let index = memchr::memchr2(b'.', b'/', path.as_bytes())?;
                             #[cfg(not(feature = "memchr"))]
-                            let index = path.find(|c| c == '.' || c == '/')?;
+                            let index = path.find(['.', '/'])?;
 
                             if path.chars().nth(index) == Some('.') {
                                 captures.push(&path[..index]);
@@ -118,12 +118,14 @@ impl RouteSpec {
                     }
                 },
 
-                Segment::Slash => match (path.chars().next(), peek.peek()) {
-                    (Some('/'), Some(_)) => &path[1..],
-                    (None, None) => path,
-                    (None, Some(Segment::Wildcard)) => path,
-                    _ => return None,
-                },
+                Segment::Slash => {
+                    match (path.chars().take_while(|c| *c == '/').count(), peek.peek()) {
+                        (0, None) => path,
+                        (0, Some(Segment::Wildcard)) => path,
+                        (n, Some(_)) => &path[n..],
+                        _ => return None,
+                    }
+                }
 
                 Segment::Dot => match path.chars().next() {
                     Some('.') => &path[1..],
@@ -168,9 +170,7 @@ impl FromStr for RouteSpec {
         let index_iter = memchr::memchr2_iter(b'.', b'/', source_trimmed.as_bytes());
 
         #[cfg(not(feature = "memchr"))]
-        let index_iter = source_trimmed
-            .match_indices(|c| c == '.' || c == '/')
-            .map(|(i, _)| i);
+        let index_iter = source_trimmed.match_indices(['.', '/']).map(|(i, _)| i);
 
         let segments = index_iter
             .chain(iter::once_with(|| source_trimmed.len()))

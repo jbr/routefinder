@@ -176,6 +176,14 @@ fn parse() -> Result {
 }
 
 #[test]
+fn multiple_slashes() -> Result {
+    assert!(RouteSpec::from_str("a/b/c")?
+        .matches("/a////b///c//")
+        .is_some());
+    Ok(())
+}
+
+#[test]
 fn templating() -> Result {
     assert_eq!(
         RouteSpec::from_str(":a/:b.:c")?
