@@ -16,7 +16,7 @@ default = []
 memchr = ["dep:memchr"]
 
 [dependencies]
-memchr = { version = "2.6.4", optional = true }
+memchr = { version = "2.7.4", optional = true }
 smartcow = "0.2.1"
 smartstring = "1.0.1"
 
