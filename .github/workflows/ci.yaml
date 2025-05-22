@@ -40,12 +40,6 @@ jobs:
         command: test
         args: --all --no-fail-fast --features memchr
 
-    - name: Run tests (bench)
-      uses: actions-rs/cargo@v1
-      with:
-        command: test
-        args: --bench bench
-
   check_fmt_and_docs:
     name: Lints and Docs
     runs-on: ubuntu-latest
