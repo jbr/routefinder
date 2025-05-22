@@ -1,4 +1,4 @@
-use crate::{Captures, ReverseMatch, Segment};
+use crate::{Captures, Path, ReverseMatch, Segment};
 use smartstring::alias::String as SmartString;
 use std::{
     cmp::Ordering,
@@ -16,6 +16,8 @@ use std::{
 pub struct RouteSpec {
     source: Option<SmartString>,
     segments: Vec<Segment>,
+    min_length: usize,
+    dot_count: usize,
 }
 
 impl Display for RouteSpec {
@@ -36,10 +38,7 @@ impl Display for RouteSpec {
 
 impl RouteSpec {
     fn dots(&self) -> usize {
-        self.segments
-            .iter()
-            .filter(|c| matches!(c, Segment::Dot))
-            .count()
+        self.dot_count
     }
 
     /// Retrieve a reference to the original route definition, if this
@@ -57,46 +56,48 @@ impl RouteSpec {
     #[inline]
     fn inner_match<'path>(
         &self,
-        mut path: &'path str,
+        path: &Path<'path>,
         captures: &mut Vec<&'path str>,
     ) -> Option<&'path str> {
+        let mut path_str = path.trimmed;
         let mut peek = self.segments.iter().peekable();
+
         while let Some(segment) = peek.next() {
-            path = match segment {
+            path_str = match segment {
                 Segment::Exact(e) => {
-                    if path.starts_with(&**e) {
-                        &path[e.len()..]
+                    if path_str.starts_with(&**e) {
+                        &path_str[e.len()..]
                     } else {
                         return None;
                     }
                 }
 
                 Segment::Param(_) => {
-                    if path.is_empty() {
+                    if path_str.is_empty() {
                         return None;
                     }
                     match peek.peek() {
                         None | Some(Segment::Slash) => {
                             #[cfg(feature = "memchr")]
-                            let capture = memchr::memchr(b'/', path.as_bytes())
-                                .map(|index| &path[..index])
-                                .unwrap_or(path);
+                            let capture = memchr::memchr(b'/', path_str.as_bytes())
+                                .map(|index| &path_str[..index])
+                                .unwrap_or(path_str);
                             #[cfg(not(feature = "memchr"))]
-                            let capture = path.split('/').next()?;
+                            let capture = path_str.split('/').next()?;
 
                             captures.push(capture);
-                            &path[capture.len()..]
+                            &path_str[capture.len()..]
                         }
 
                         Some(Segment::Dot) => {
                             #[cfg(feature = "memchr")]
-                            let index = memchr::memchr2(b'.', b'/', path.as_bytes())?;
+                            let index = memchr::memchr2(b'.', b'/', path_str.as_bytes())?;
                             #[cfg(not(feature = "memchr"))]
-                            let index = path.find(['.', '/'])?;
+                            let index = path_str.find(['.', '/'])?;
 
-                            if path.chars().nth(index) == Some('.') {
-                                captures.push(&path[..index]);
-                                &path[index..] // we leave the dot so it can be matched by the Segment::Dot
+                            if path_str.chars().nth(index) == Some('.') {
+                                captures.push(&path_str[..index]);
+                                &path_str[index..] // we leave the dot so it can be matched by the Segment::Dot
                             } else {
                                 return None;
                             }
@@ -113,36 +114,51 @@ impl RouteSpec {
                         "please file an issue if you have a use case for a mid-route *"
                     )),
                     None => {
-                        captures.push(path);
+                        captures.push(path_str);
                         ""
                     }
                 },
 
                 Segment::Slash => {
-                    match (path.chars().take_while(|c| *c == '/').count(), peek.peek()) {
-                        (0, None) => path,
-                        (0, Some(Segment::Wildcard)) => path,
-                        (n, Some(_)) => &path[n..],
+                    match (
+                        path_str.chars().take_while(|c| *c == '/').count(),
+                        peek.peek(),
+                    ) {
+                        (0, None) => path_str,
+                        (0, Some(Segment::Wildcard)) => path_str,
+                        (n, Some(_)) => &path_str[n..],
                         _ => return None,
                     }
                 }
 
-                Segment::Dot => match path.chars().next() {
-                    Some('.') => &path[1..],
+                Segment::Dot => match path_str.chars().next() {
+                    Some('.') => &path_str[1..],
                     _ => return None,
                 },
             }
         }
 
-        Some(path)
+        Some(path_str)
+    }
+
+    #[inline]
+    fn passes_optimization_criteria(&self, path: &Path<'_>) -> bool {
+        self.min_length <= path.trimmed.len()
     }
 
     /// Returns a vec of captured str slices for this routespec
     #[inline]
     pub fn matches<'path>(&self, path: &'path str) -> Option<Vec<&'path str>> {
-        let mut p = path.trim_start_matches('/').trim_end_matches('/');
+        self.matches_path(&path.into())
+    }
+
+    #[inline]
+    pub(crate) fn matches_path<'path>(&self, path: &Path<'path>) -> Option<Vec<&'path str>> {
+        if !self.passes_optimization_criteria(path) {
+            return None;
+        }
         let mut captures = vec![];
-        p = self.inner_match(p, &mut captures)?;
+        let p = self.inner_match(path, &mut captures)?;
         if p.is_empty() || p == "/" {
             Some(captures)
         } else {
@@ -157,6 +173,48 @@ impl RouteSpec {
         captures: &'captures Captures<'keys, 'values>,
     ) -> Option<ReverseMatch<'keys, 'values, 'captures, 'route>> {
         ReverseMatch::new(captures, self)
+    }
+
+    fn compute_optimizations(&mut self) {
+        self.dot_count = 0;
+        self.min_length = 0;
+
+        for segment in &self.segments {
+            match segment {
+                Segment::Slash => {
+                    if self.min_length != 0 {
+                        self.min_length += 1;
+                    }
+                }
+                Segment::Dot => {
+                    self.min_length += 1;
+                    self.dot_count += 1;
+                }
+                Segment::Exact(s) => {
+                    self.min_length += s.len();
+                }
+                Segment::Param(_) => {
+                    self.min_length += 1;
+                }
+                Segment::Wildcard => {}
+            }
+        }
+
+        if matches!(self.segments.first(), Some(Segment::Slash)) {
+            self.min_length = self.min_length.saturating_sub(1);
+        }
+
+        if matches!(
+            self.segments.last(),
+            Some(Segment::Slash | Segment::Wildcard)
+        ) {
+            self.min_length = self.min_length.saturating_sub(1);
+        }
+    }
+
+    fn optimize(mut self) -> Self {
+        self.compute_optimizations();
+        self
     }
 }
 
@@ -224,7 +282,10 @@ impl FromStr for RouteSpec {
         Ok(Self {
             source: Some(SmartString::from(source)),
             segments,
-        })
+            min_length: 0,
+            dot_count: 0,
+        }
+        .optimize())
     }
 }
 
@@ -248,7 +309,10 @@ impl From<Vec<Segment>> for RouteSpec {
         Self {
             segments,
             source: None,
+            min_length: 0,
+            dot_count: 0,
         }
+        .optimize()
     }
 }
 
