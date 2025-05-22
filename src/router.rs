@@ -1,4 +1,4 @@
-use crate::{Match, RouteSpec};
+use crate::{Match, Path, RouteSpec};
 use std::{
     collections::{
         btree_map::{IntoIter, Iter, IterMut},
@@ -14,7 +14,6 @@ use std::{
 /// A router represents an ordered set of routes which can be applied
 /// to a given request path, and any handler T that is associated with
 /// each route
-
 pub struct Router<Handler> {
     routes: BTreeMap<RouteSpec, Handler>,
 }
@@ -23,7 +22,7 @@ impl<Handler> Debug for Router<Handler> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut debug_set = f.debug_set();
         for route in self.routes.keys() {
-            debug_set.entry(&format_args!("{}", route));
+            debug_set.entry(&format_args!("{route}"));
         }
         debug_set.finish()
     }
@@ -84,6 +83,19 @@ impl<Handler> Router<Handler> {
     /// ```
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Constructs a new router with the provided routes
+    pub fn new_with_routes<RS, I>(iter: I) -> Result<Self, <RS as TryInto<RouteSpec>>::Error>
+    where
+        I: IntoIterator<Item = (RS, Handler)>,
+        RS: TryInto<RouteSpec>,
+    {
+        let mut router = Self::new();
+        for (rs, handler) in iter {
+            router.add(rs, handler)?;
+        }
+        Ok(router)
     }
 
     /// Adds a route to the router, accepting any type that implements TryInto<[`RouteSpec`]>. In most circumstances, this will be a &str or a String.
@@ -158,7 +170,7 @@ impl<Handler> Router<Handler> {
     pub fn match_iter<'a, 'b>(&'a self, path: &'b str) -> MatchIter<'a, 'b, Handler> {
         MatchIter {
             iter: self.routes.iter(),
-            path,
+            path: path.into(),
         }
     }
 
@@ -222,16 +234,16 @@ impl<Handler> Router<Handler> {
 #[derive(Debug)]
 pub struct MatchIter<'a, 'b, Handler> {
     iter: Iter<'a, RouteSpec, Handler>,
-    path: &'b str,
+    path: Path<'b>,
 }
 impl<'a, 'b, Handler> Iterator for MatchIter<'a, 'b, Handler> {
     type Item = Match<'a, 'b, Handler>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let path = self.path;
-        self.iter.find_map(|(route, handler)| {
-            route.matches(path).map(|captures| Match {
-                path,
+        let MatchIter { iter, path } = self;
+        iter.find_map(|(route, handler)| {
+            route.matches_path(path).map(|captures| Match {
+                path: path.str,
                 route,
                 captures,
                 handler,

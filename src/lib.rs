@@ -57,3 +57,6 @@ pub use reverse_match::ReverseMatch;
 
 mod route_spec;
 pub use route_spec::RouteSpec;
+
+mod path;
+pub(crate) use path::Path;

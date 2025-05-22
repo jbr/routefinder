@@ -5,13 +5,14 @@ use routefinder::*;
 
 #[test]
 fn it_works() -> Result {
-    let mut router = Router::new();
-    router.add("/*", 1)?;
-    router.add("/hello", 2)?;
-    router.add("/:greeting", 3)?;
-    router.add("/hey/:world", 4)?;
-    router.add("/hey/earth", 5)?;
-    router.add("/:greeting/:world/*", 6)?;
+    let router = Router::new_with_routes([
+        ("/*", 1),
+        ("/hello", 2),
+        ("/:greeting", 3),
+        ("/hey/:world", 4),
+        ("/hey/earth", 5),
+        ("/:greeting/:world/*", 6),
+    ])?;
 
     assert_eq!(
         &format!("{:#?}", &router),
@@ -52,11 +53,12 @@ fn it_works() -> Result {
 
 #[test]
 fn several_params() -> Result {
-    let mut router = Router::new();
-    router.add("/:a", 1)?;
-    router.add("/:a/:b", 2)?;
-    router.add("/:a/:b/:c", 3)?;
-    router.add("/:param1/specific/:param2", 4)?;
+    let router = Router::new_with_routes([
+        ("/:a", 1),
+        ("/:a/:b", 2),
+        ("/:a/:b/:c", 3),
+        ("/:param1/specific/:param2", 4),
+    ])?;
     assert_eq!(*router.best_match("/hi").unwrap(), 1);
     assert_eq!(*router.best_match("/hi/there").unwrap(), 2);
     assert_eq!(*router.best_match("/hi/there/hey").unwrap(), 3);
@@ -73,16 +75,13 @@ fn several_params() -> Result {
 
 #[test]
 fn wildcard_matches_root() -> Result {
-    let mut router = Router::new();
-    router.add("*", ())?;
+    let router = Router::new_with_routes([("*", ())])?;
     assert!(router.best_match("/").is_some());
 
-    let mut router = Router::new();
-    router.add("/something/:anything/*", ())?;
+    let router = Router::new_with_routes([("/something/:anything/*", ())])?;
     assert!(router.best_match("/something/1/").is_some());
 
-    let mut router = Router::new();
-    router.add("/something/:anything/*", ())?;
+    let router = Router::new_with_routes([("/something/:anything/*", ())])?;
     assert!(router.best_match("/something/1").is_some());
 
     Ok(())
@@ -90,13 +89,11 @@ fn wildcard_matches_root() -> Result {
 
 #[test]
 fn trailing_slashes_are_ignored() -> Result {
-    let mut router = Router::new();
-    router.add("/a", ())?;
+    let router = Router::new_with_routes([("/a", ())])?;
     assert!(router.best_match("/a/").is_some());
     assert!(router.best_match("/a").is_some());
 
-    let mut router = Router::new();
-    router.add("/a/", ())?;
+    let router = Router::new_with_routes([("/a/", ())])?;
     assert!(router.best_match("/a").is_some());
     assert!(router.best_match("/a/").is_some());
 
@@ -105,8 +102,7 @@ fn trailing_slashes_are_ignored() -> Result {
 
 #[test]
 fn captures() -> Result {
-    let mut router = Router::new();
-    router.add("/:a/:b/:c", ())?;
+    let router = Router::new_with_routes([("/:a/:b/:c", ())])?;
     let best_match = router.best_match("/aaa/bbb/ccc").unwrap();
     let captures = best_match.captures();
     assert_eq!(captures.get("a"), Some("aaa"));
@@ -114,8 +110,7 @@ fn captures() -> Result {
     assert_eq!(captures.get("c"), Some("ccc"));
     assert_eq!(captures.get("not-present"), None);
 
-    let mut router = Router::new();
-    router.add("/*", ())?;
+    let router = Router::new_with_routes([("/*", ())])?;
     let best_match = router.best_match("/hello/world").unwrap();
     assert_eq!(best_match.captures().wildcard(), Some("hello/world"));
 
@@ -136,11 +131,12 @@ fn errors_on_add() {
 
 #[test]
 fn dots() -> Result {
-    let mut router = Router::new();
-    router.add("/:a.:b", 1)?;
-    router.add("/:a/:b.:c", 2)?;
-    router.add("/:a/:b", 3)?;
-    router.add("/:a/:b.txt", 4)?;
+    let router = Router::new_with_routes([
+        ("/:a.:b", 1),
+        ("/:a/:b.:c", 2),
+        ("/:a/:b", 3),
+        ("/:a/:b.txt", 4),
+    ])?;
     assert_eq!(*router.best_match("/hello.world").unwrap(), 1);
     assert_eq!(*router.best_match("/hi/there.world").unwrap(), 2);
     assert_eq!(*router.best_match("/hi/yep").unwrap(), 3);
