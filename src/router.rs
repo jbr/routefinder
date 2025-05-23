@@ -1,4 +1,4 @@
-use crate::{Match, Path, RouteSpec};
+use crate::{trie::TrieMatch, Match, Path, RouteSpec, Trie};
 use std::{
     collections::{
         btree_map::{IntoIter, Iter, IterMut},
@@ -16,6 +16,7 @@ use std::{
 /// each route
 pub struct Router<Handler> {
     routes: BTreeMap<RouteSpec, Handler>,
+    compiled: Trie,
 }
 
 impl<Handler> Debug for Router<Handler> {
@@ -32,6 +33,7 @@ impl<Handler> Default for Router<Handler> {
     fn default() -> Self {
         Self {
             routes: Default::default(),
+            compiled: Default::default(),
         }
     }
 }
@@ -67,9 +69,13 @@ impl<'a, Handler: 'a> IntoIterator for &'a mut Router<Handler> {
 
 impl<Handler> FromIterator<(RouteSpec, Handler)> for Router<Handler> {
     fn from_iter<T: IntoIterator<Item = (RouteSpec, Handler)>>(iter: T) -> Self {
-        Self {
-            routes: iter.into_iter().collect(),
+        let routes: BTreeMap<RouteSpec, Handler> = iter.into_iter().collect();
+        let mut compiled = Trie::default();
+        for key in routes.keys() {
+            compiled.insert(key.clone());
         }
+
+        Self { routes, compiled }
     }
 }
 
@@ -114,7 +120,9 @@ impl<Handler> Router<Handler> {
     where
         R: TryInto<RouteSpec>,
     {
-        self.routes.insert(route.try_into()?, handler);
+        let route_spec = route.try_into()?;
+        self.routes.insert(route_spec.clone(), handler);
+        self.compiled.insert(route_spec);
         Ok(())
     }
 
@@ -139,7 +147,25 @@ impl<Handler> Router<Handler> {
     /// assert_eq!(*router.best_match("/").unwrap(), 0);
     /// ```
     pub fn best_match<'a, 'b>(&'a self, path: &'b str) -> Option<Match<'a, 'b, Handler>> {
-        self.match_iter(path).next()
+        let TrieMatch(route, mut captures, wildcard) = self.compiled.matches(path)?;
+
+        #[cfg(feature = "log")]
+        log::trace!(
+            "route: {route}\ncaptures: {captures:?}\nwildcard: {}",
+            wildcard.unwrap_or_default()
+        );
+
+        if let Some(wildcard) = wildcard {
+            captures.push(wildcard);
+        }
+
+        let (route, handler) = self.routes.get_key_value(route)?;
+        Some(Match {
+            path,
+            route,
+            captures,
+            handler,
+        })
     }
 
     /// Returns _all_ of the matching routes for a given path. This is
