@@ -330,3 +330,34 @@ fn param_then_dot_or_slash() -> Result {
     assert_eq!(*router.best_match("foo/qux.baz").unwrap(), "dot");
     Ok(())
 }
+
+#[test(harness)]
+fn both_param_and_wildcard_at_root() -> Result {
+    let router = Router::new_with_routes([("*", 0), ("/:param", 1)])?;
+    assert_eq!(*router.best_match("/").unwrap(), 0);
+    Ok(())
+}
+
+#[test(harness)]
+fn exact_and_param_and_wildcard_precedence() -> Result {
+    let router = Router::new_with_routes([
+        ("/", "root"),
+        ("*", "wildcard"),
+        ("/:param", "param"),
+        ("/prefix/*", "prefixed-wildcard"),
+        ("/prefix", "prefix"),
+        ("/prefix/:param", "prefixed-param"),
+    ])?;
+    assert_eq!(*router.best_match("/").unwrap(), "root");
+    assert_eq!(*router.best_match("/foo").unwrap(), "param");
+    assert_eq!(*router.best_match("/foo/bar").unwrap(), "wildcard");
+
+    assert_eq!(*router.best_match("/prefix").unwrap(), "prefix");
+    assert_eq!(*router.best_match("/prefix/foo").unwrap(), "prefixed-param");
+    assert_eq!(
+        *router.best_match("/prefix/foo/bar").unwrap(),
+        "prefixed-wildcard"
+    );
+
+    Ok(())
+}
