@@ -1,9 +1,14 @@
 type Result = std::result::Result<(), Box<dyn std::error::Error>>;
-use std::{iter::FromIterator, str::FromStr};
-
 use routefinder::*;
+use std::{iter::FromIterator, str::FromStr};
+use test_harness::test;
 
-#[test]
+fn harness(f: impl Fn() -> Result) -> Result {
+    let _ = env_logger::builder().is_test(true).try_init();
+    f()
+}
+
+#[test(harness)]
 fn it_works() -> Result {
     let router = Router::new_with_routes([
         ("/*", 1),
@@ -51,7 +56,7 @@ fn it_works() -> Result {
     Ok(())
 }
 
-#[test]
+#[test(harness)]
 fn several_params() -> Result {
     let router = Router::new_with_routes([
         ("/:a", 1),
@@ -73,7 +78,7 @@ fn several_params() -> Result {
     Ok(())
 }
 
-#[test]
+#[test(harness)]
 fn wildcard_matches_root() -> Result {
     let router = Router::new_with_routes([("*", ())])?;
     assert!(router.best_match("/").is_some());
@@ -87,7 +92,7 @@ fn wildcard_matches_root() -> Result {
     Ok(())
 }
 
-#[test]
+#[test(harness)]
 fn trailing_slashes_are_ignored() -> Result {
     let router = Router::new_with_routes([("/a", ())])?;
     assert!(router.best_match("/a/").is_some());
@@ -100,7 +105,7 @@ fn trailing_slashes_are_ignored() -> Result {
     Ok(())
 }
 
-#[test]
+#[test(harness)]
 fn captures() -> Result {
     let router = Router::new_with_routes([("/:a/:b/:c", ())])?;
     let best_match = router.best_match("/aaa/bbb/ccc").unwrap();
@@ -117,8 +122,8 @@ fn captures() -> Result {
     Ok(())
 }
 
-#[test]
-fn errors_on_add() {
+#[test(harness)]
+fn errors_on_add() -> Result {
     let mut router = Router::new();
 
     assert!(router
@@ -127,9 +132,10 @@ fn errors_on_add() {
         .contains("replace `*named_star` with `*`"));
 
     assert_eq!(router.add(":", ()).unwrap_err(), "params must be named");
+    Ok(())
 }
 
-#[test]
+#[test(harness)]
 fn dots() -> Result {
     let router = Router::new_with_routes([
         ("/:a.:b", 1),
@@ -157,7 +163,7 @@ fn dots() -> Result {
     Ok(())
 }
 
-#[test]
+#[test(harness)]
 fn parse() -> Result {
     assert_eq!(
         RouteSpec::from_str("a.:b")?.matches("a.hello"),
@@ -171,7 +177,7 @@ fn parse() -> Result {
     Ok(())
 }
 
-#[test]
+#[test(harness)]
 fn multiple_slashes() -> Result {
     assert!(RouteSpec::from_str("a/b/c")?
         .matches("/a////b///c//")
@@ -179,7 +185,7 @@ fn multiple_slashes() -> Result {
     Ok(())
 }
 
-#[test]
+#[test(harness)]
 fn templating() -> Result {
     assert_eq!(
         RouteSpec::from_str(":a/:b.:c")?
@@ -192,7 +198,7 @@ fn templating() -> Result {
     Ok(())
 }
 
-#[test]
+#[test(harness)]
 fn specific_matches() -> Result {
     assert_eq!(
         RouteSpec::from_str(":param")?.matches("/a.b.c.d").unwrap(),
@@ -223,7 +229,7 @@ fn specific_matches() -> Result {
     Ok(())
 }
 
-#[test]
+#[test(harness)]
 fn priority() -> Result {
     assert!(RouteSpec::from_str("exact")? < RouteSpec::from_str(":param")?);
     assert!(RouteSpec::from_str("a")? < RouteSpec::from_str("a/b")?);
@@ -231,8 +237,8 @@ fn priority() -> Result {
     Ok(())
 }
 
-#[test]
-fn extend_captures() {
+#[test(harness)]
+fn extend_captures() -> Result {
     let mut captures = Captures::from_iter([("key", "value")]);
     let other_captures = Captures::from_iter([("key2", "value2")]);
 
@@ -242,10 +248,11 @@ fn extend_captures() {
         captures.iter().collect::<Vec<_>>(),
         [("key", "value"), ("key2", "value2")]
     );
+    Ok(())
 }
 
-#[test]
-fn append_captures() {
+#[test(harness)]
+fn append_captures() -> Result {
     let mut captures = Captures::from_iter([("key", "value")]);
     captures.set_wildcard("something");
 
@@ -260,4 +267,66 @@ fn append_captures() {
     );
 
     assert_eq!(Some("other"), captures.wildcard());
+    Ok(())
+}
+
+#[test(harness)]
+fn wildcard_vs_param() -> Result {
+    let router = Router::new_with_routes([("/foo/*", "wildcard"), ("/foo/:bar", "param")])?;
+    assert_eq!(*router.best_match("/foo/123").unwrap(), "param");
+    Ok(())
+}
+
+#[test(harness)]
+fn trailing_slashes() -> Result {
+    let router = Router::new_with_routes([("/foo/bar", "no-trailing-slash")])?;
+    assert_eq!(
+        *router.best_match("/foo/bar/").unwrap(),
+        "no-trailing-slash"
+    );
+    Ok(())
+}
+
+#[test(harness)]
+fn prefix_ambiguity() -> Result {
+    let router = Router::new_with_routes([("/foo/bar", "exact"), ("/foo/:bar", "param")])?;
+    assert_eq!(*router.best_match("/foo/bar").unwrap(), "exact");
+    assert_eq!(*router.best_match("/foo/qux").unwrap(), "param");
+    Ok(())
+}
+
+#[test(harness)]
+fn slashes() -> Result {
+    let router = Router::new_with_routes([("/foo/bar", "one-slash")])?;
+    assert_eq!(*router.best_match("//foo///bar").unwrap(), "one-slash");
+    assert_eq!(*router.best_match("/foo//bar").unwrap(), "one-slash");
+    Ok(())
+}
+
+#[test(harness)]
+fn wildcard() -> Result {
+    let router = Router::new_with_routes([("/foo/*", "wildcard")])?;
+    assert_eq!(*router.best_match("/foo/bar/baz/qux").unwrap(), "wildcard");
+    Ok(())
+}
+
+#[test(harness)]
+fn root() -> Result {
+    let router = Router::new_with_routes([("/", "root")])?;
+    assert_eq!(*router.best_match("").unwrap(), "root");
+    Ok(())
+}
+
+#[test(harness)]
+fn simple_exact_match() -> Result {
+    let router = Router::new_with_routes([("foo", "foo")])?;
+    assert_eq!(*router.best_match("foo").unwrap(), "foo");
+    Ok(())
+}
+
+#[test(harness)]
+fn param_then_dot_or_slash() -> Result {
+    let router = Router::new_with_routes([("/foo/:bar.baz", "dot")])?;
+    assert_eq!(*router.best_match("foo/qux.baz").unwrap(), "dot");
+    Ok(())
 }

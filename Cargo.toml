@@ -14,14 +14,18 @@ categories = ["web-programming::http-server", "web-programming"]
 [features]
 default = []
 memchr = ["dep:memchr"]
+log = ["dep:log"]
 
 [dependencies]
+log = { version = "0.4.27", optional = true }
 memchr = { version = "2.7.4", optional = true }
 smartcow = "0.2.1"
 smartstring = "1.0.1"
 
 [dev-dependencies]
 criterion = { version = "0.6.0", features = ["html_reports"] }
+env_logger = "0.11.8"
+test-harness = "0.3.1"
 
 [[bench]]
 name = "bench"
