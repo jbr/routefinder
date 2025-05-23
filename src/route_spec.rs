@@ -12,12 +12,18 @@ use std::{
 ///
 /// This contains both an optional source string (or unique description) and
 /// an ordered sequence of [`Segment`]s
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Eq, Debug, Clone)]
 pub struct RouteSpec {
     source: Option<SmartString>,
     segments: Vec<Segment>,
     min_length: usize,
     dot_count: usize,
+}
+
+impl PartialEq for RouteSpec {
+    fn eq(&self, other: &Self) -> bool {
+        self.segments == other.segments
+    }
 }
 
 impl Display for RouteSpec {
@@ -333,7 +339,7 @@ impl Ord for RouteSpec {
                 other.segments.len().cmp(&self.segments.len())
             }))
             .find(|c| *c != Ordering::Equal)
-            .unwrap_or(Ordering::Less)
+            .unwrap_or(Ordering::Equal)
             .reverse()
     }
 }

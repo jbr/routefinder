@@ -330,3 +330,10 @@ fn param_then_dot_or_slash() -> Result {
     assert_eq!(*router.best_match("foo/qux.baz").unwrap(), "dot");
     Ok(())
 }
+
+#[test(harness)]
+fn both_param_and_wildcard_at_root() -> Result {
+    let router = Router::new_with_routes([("*", 0), ("/:param", 1)])?;
+    assert_eq!(*router.best_match("/").unwrap(), 0);
+    Ok(())
+}

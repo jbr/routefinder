@@ -60,3 +60,6 @@ pub use route_spec::RouteSpec;
 
 mod path;
 pub(crate) use path::Path;
+
+mod trie;
+pub(crate) use trie::Trie;
