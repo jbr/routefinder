@@ -39,7 +39,7 @@ struct TrieNode {
     dot: Option<Box<TrieNode>>,
     statics: BTreeMap<String, TrieNode>,
     params: Option<Box<TrieNode>>,
-    wildcard: bool,
+    wildcard: Option<RouteSpec>,
     route: Option<RouteSpec>,
 }
 
@@ -47,25 +47,26 @@ impl std::fmt::Debug for TrieNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut map = f.debug_map();
         if let Some(route) = &self.route {
-            map.entry(
-                if self.wildcard { &"*" } else { &"" },
-                &format_args!("{route}"),
-            );
+            map.entry(&format_args!(""), &format_args!("{route}"));
+        }
+
+        if let Some(wildcard) = &self.wildcard {
+            map.entry(&format_args!("*"), &format_args!("{wildcard}"));
         }
         if let Some(slash) = &self.slash {
-            map.entry(&"/", slash);
+            map.entry(&format_args!("/"), slash);
         }
 
         if let Some(dot) = &self.dot {
-            map.entry(&".", dot);
+            map.entry(&format_args!("."), dot);
+        }
+
+        if let Some(params) = &self.params {
+            map.entry(&format_args!(":param"), params);
         }
 
         for (key, value) in &self.statics {
             map.entry(key, value);
-        }
-
-        if let Some(params) = &self.params {
-            map.entry(&"[[:param]]", params);
         }
 
         map.finish()
@@ -80,23 +81,22 @@ impl TrieNode {
         wildcard: &mut Option<&'a str>,
     ) -> Option<&'trie RouteSpec> {
         #[cfg(feature = "log")]
-        log::trace!("{path:?}, {:?}", self);
+        log::trace!("{path:?}, {:#?}", self);
 
         if let Some(route) = &self.route {
-            if !self.wildcard && path.is_empty() {
+            if path.is_empty() {
                 #[cfg(feature = "log")]
-                log::trace!("{path:?}, {route}");
+                log::trace!("non-wildcard terminal {path:?}, {route}");
                 return Some(route);
             }
         }
 
         match path.as_bytes().first() {
             Some(b'/') => {
-                let slashes = path.chars().take_while(|x| *x == '/').count();
-                return self
-                    .slash
-                    .as_ref()?
-                    .matches(&path[slashes..], captures, wildcard);
+                let rest = path.trim_start_matches("/");
+                #[cfg(feature = "log")]
+                log::trace!("slash {path:?} -> {rest:?}");
+                return self.slash.as_ref()?.matches(rest, captures, wildcard);
             }
             Some(b'.') => {
                 return self.dot.as_ref()?.matches(&path[1..], captures, wildcard);
@@ -123,6 +123,9 @@ impl TrieNode {
             return Some(route);
         }
 
+        #[cfg(feature = "log")]
+        log::trace!("{path:?} -> {component:?} [/] {rest:?}");
+
         if !component.is_empty() {
             if let Some(param) = &self.params {
                 if let Some(route) = param.matches(rest, captures, wildcard) {
@@ -132,11 +135,9 @@ impl TrieNode {
             }
         }
 
-        if let Some(route) = &self.route {
-            if self.wildcard {
-                *wildcard = Some(path);
-                return Some(route);
-            }
+        if let Some(route) = &self.wildcard {
+            *wildcard = Some(path);
+            return Some(route);
         }
 
         if path.is_empty() {
@@ -166,13 +167,12 @@ impl TrieNode {
                 .insert(route, depth + 1),
             Segment::Param(_) => self.params.get_or_insert_default().insert(route, depth + 1),
             Segment::Wildcard => {
-                self.wildcard = true;
                 #[cfg(feature = "log")]
-                if let Some(previous) = &self.route {
+                if let Some(previous) = &self.wildcard {
                     log::warn!("replacing {previous} with {route} for wildcard");
                 }
 
-                self.route = Some(route);
+                self.wildcard = Some(route);
             }
         }
     }
