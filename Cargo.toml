@@ -11,22 +11,45 @@ license = "MIT OR Apache-2.0"
 keywords = ["router"]
 categories = ["web-programming::http-server", "web-programming"]
 
+[workspace]
+resolver = "3"
+members = [".", "fuzz"]
+
 [features]
 default = []
 memchr = ["dep:memchr"]
 log = ["dep:log"]
+arbitrary = ["dep:arbitrary"]
 
 [dependencies]
+arbitrary = { version = "1.4.1", optional = true, features = ["derive"] }
 log = { version = "0.4.27", optional = true }
 memchr = { version = "2.7.4", optional = true }
+smallvec = "1.15.0"
 smartcow = "0.2.1"
 smartstring = "1.0.1"
 
 [dev-dependencies]
 criterion = { version = "0.6.0", features = ["html_reports"] }
 env_logger = "0.11.8"
+# Pinned to the released baseline whose behavior tests/compat_check.rs guards against.
+# Concrete version (not `*`) so the crate stays publishable — crates.io rejects
+# wildcard requirements, and versioned dev-deps are kept in the published manifest.
+published = { version = "=0.5.4", package = "routefinder" }
+# origin/main, for per-PR perf comparison in benches/scaling.rs. A versionless git
+# dev-dep is stripped from the published manifest, so it does not affect releasing.
+mainline = { git = "https://github.com/jbr/routefinder", branch = "main", package = "routefinder" }
 test-harness = "0.3.1"
+
+[profile.bench]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
 
 [[bench]]
 name = "bench"
+harness = false
+
+[[bench]]
+name = "scaling"
 harness = false

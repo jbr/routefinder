@@ -69,7 +69,7 @@ impl<'keys, 'values> Captures<'keys, 'values> {
     }
 
     /// returns a slice of captures
-    pub fn params(&self) -> &[Capture] {
+    pub fn params(&self) -> &[Capture<'keys, 'values>] {
         &self.params[..]
     }
 

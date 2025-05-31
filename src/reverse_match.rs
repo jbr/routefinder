@@ -42,7 +42,7 @@ impl<'keys, 'values, 'captures, 'route> ReverseMatch<'keys, 'values, 'captures, 
     }
 
     /// Returns the [`Captures`] for this ReverseMatch
-    pub fn captures(&self) -> &Captures {
+    pub fn captures(&self) -> &Captures<'keys, 'values> {
         self.captures
     }
 }

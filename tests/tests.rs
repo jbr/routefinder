@@ -15,21 +15,10 @@ fn it_works() -> Result {
         ("/hello", 2),
         ("/:greeting", 3),
         ("/hey/:world", 4),
+        ("/:salutation/:world/*", 6),
+        ("/hey/:param/:second/*", 11),
         ("/hey/earth", 5),
-        ("/:greeting/:world/*", 6),
     ])?;
-
-    assert_eq!(
-        &format!("{:#?}", &router),
-        r#"{
-    /hello,
-    /hey/earth,
-    /hey/:world,
-    /:greeting,
-    /:greeting/:world/*,
-    /*,
-}"#
-    );
 
     let matches = router.matches("/hello");
     assert_eq!(matches.len(), 3);
@@ -45,13 +34,13 @@ fn it_works() -> Result {
         Some("mars")
     );
 
-    let m = router.best_match("/hey/earth/wildcard/stuff").unwrap();
+    let m = router.best_match("/hey/earth/some/wildcard/stuff").unwrap();
 
-    assert_eq!(*m, 6);
+    assert_eq!(*m, 11);
     let captures = m.captures();
     assert_eq!(captures.wildcard(), Some("wildcard/stuff"));
-    assert_eq!(captures.get("greeting"), Some("hey"));
-    assert_eq!(captures.get("world"), Some("earth"));
+    assert_eq!(captures.get("param"), Some("earth"));
+    assert_eq!(captures.get("second"), Some("some"));
 
     Ok(())
 }
@@ -143,6 +132,7 @@ fn dots() -> Result {
         ("/:a/:b", 3),
         ("/:a/:b.txt", 4),
     ])?;
+
     assert_eq!(*router.best_match("/hello.world").unwrap(), 1);
     assert_eq!(*router.best_match("/hi/there.world").unwrap(), 2);
     assert_eq!(*router.best_match("/hi/yep").unwrap(), 3);
@@ -150,8 +140,7 @@ fn dots() -> Result {
 
     assert_eq!(
         router
-            .matches("/hi/planet.txt")
-            .into_iter()
+            .match_iter("/hi/planet.txt")
             .map(|x| *x)
             .collect::<Vec<_>>(),
         vec![4, 2, 3]
@@ -171,9 +160,24 @@ fn parse() -> Result {
     );
 
     assert_eq!(
+        RouteSpec::from_str("/a/b/c")?.matches("/a/b/c"),
+        Some(vec![])
+    );
+    assert_eq!(
+        RouteSpec::from_str("/a.b.c")?.matches("/a.b.c"),
+        Some(vec![])
+    );
+
+    assert_eq!(
         RouteSpec::from_str(":a.:b")?.matches("a.hello"),
         Some(vec!["a", "hello"])
     );
+    assert_eq!(
+        RouteSpec::from_str("a.:b")?.matches("a.hello"),
+        Some(vec!["hello"])
+    );
+    assert_eq!(RouteSpec::from_str(":a.b")?.matches("a.b"), Some(vec!["a"]));
+
     Ok(())
 }
 
@@ -359,5 +363,122 @@ fn exact_and_param_and_wildcard_precedence() -> Result {
         "prefixed-wildcard"
     );
 
+    Ok(())
+}
+
+#[test(harness)]
+fn more_regression_testing() -> Result {
+    let routes = [
+        (
+            vec![":abc.:def"],
+            "abc.def",
+            ":abc.:def",
+            vec![("abc", "abc"), ("def", "def")],
+        ),
+        (
+            vec![":abc.:def", ":abc"],
+            "abc.def",
+            ":abc.:def",
+            vec![("abc", "abc"), ("def", "def")],
+        ),
+        (vec!["abc.def", "abc/*"], "abc.def", "abc.def", vec![]),
+        (
+            vec![":param"],
+            "abc.def",
+            ":param",
+            vec![("param", "abc.def")],
+        ),
+        (
+            vec![":a.:b.:c"],
+            "abc.def.ghi",
+            ":a.:b.:c",
+            vec![("a", "abc"), ("b", "def"), ("c", "ghi")],
+        ),
+        (vec!["a.:b", ":a.b", ":a"], "z.b", ":a.b", vec![("a", "z")]),
+        (vec!["a.:b", ":a.b", ":a"], "a.z", "a.:b", vec![("b", "z")]),
+        (vec!["a.:b", ":a.b", "a.b"], "a.b", "a.b", vec![]),
+        (vec!["a."], "a.", "a.", vec![]),
+        (vec![".a"], ".a", ".a", vec![]),
+        (vec![".:a"], ".a", ".:a", vec![("a", "a")]),
+        (vec![":a."], "a.", ":a.", vec![("a", "a")]),
+        (vec!["a.b.:c/x"], "a.b.c/x", "a.b.:c/x", vec![("c", "c")]),
+        (
+            vec![":a.b.:c/x"],
+            "a.b.c/x",
+            ":a.b.:c/x",
+            vec![("a", "a"), ("c", "c")],
+        ),
+        (
+            vec![":a.b.:c.d/x"],
+            "a.b.c.d/x",
+            ":a.b.:c.d/x",
+            vec![("a", "a"), ("c", "c")],
+        ),
+        (
+            vec![":a.b.:c.:d/x"],
+            "a.b.c.d.e/x",
+            ":a.b.:c.:d/x",
+            vec![("a", "a"), ("c", "c"), ("d", "d.e")],
+        ),
+        (
+            vec![":just_param", ":param.exact."],
+            "anything.exact.",
+            ":param.exact.",
+            vec![("param", "anything")],
+        ),
+        (
+            vec!["/0", "/:s", "/:e.88!S8888.", "/"],
+            "/11.88!S8888.",
+            "/:e.88!S8888.",
+            vec![("e", "11")],
+        ),
+        (
+            vec!["/exact", "/:s", "/:param.prefix"],
+            "/param.prefix",
+            "/:param.prefix",
+            vec![("param", "param")],
+        ),
+    ];
+    for (i, (route, path, expected, captures)) in routes.iter().enumerate() {
+        let router = Router::new_with_routes(route.iter().map(|r| (*r, *r)))?;
+        // for (route, _) in &router {
+        //     let mut keys = router.iter().map(|(x, _)| x).collect::<Vec<_>>();
+        //     keys.sort();
+        //     dbg!(&keys);
+        //     // assert_eq!(key.cmp(route), Ordering::Equal);
+        //     // assert_eq!(route.cmp(key), Ordering::Equal);
+
+        //     assert!(
+        //         router.get_handler(route.clone()).is_some(),
+        //         "could not find {}",
+        //         route
+        //     );
+        // }
+
+        let new = router.best_match(path);
+
+        let old = router.match_iter(path).next();
+        assert_eq!(new, old);
+        let new = new.unwrap();
+        let old = old.unwrap();
+        assert_eq!(new.handler(), old.handler());
+        assert_eq!(new.handler(), expected, "{i} {path}");
+        assert_eq!(old.handler(), expected, "{i} {path}");
+        for (param, expected_capture) in captures {
+            assert_eq!(
+                new.captures().get(param),
+                Some(*expected_capture),
+                "{i} NEW {path} param {param}"
+            );
+            assert_eq!(
+                old.captures().get(param),
+                Some(*expected_capture),
+                "{i} OLD {path} param {param}"
+            );
+        }
+
+        assert_eq!(new.captures().len(), captures.len(), "{i} {path}");
+        assert_eq!(old.captures().len(), captures.len(), "{i} {path}");
+    }
     Ok(())
 }

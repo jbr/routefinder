@@ -4,7 +4,7 @@ use smartstring::alias::String as SmartString;
 /// as an example, `/hello/:planet/*` would be represented as the
 /// following sequence `[Exact("hello"), Slash, Param("planet"),
 /// Slash, Wildcard]`
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Segment {
     /// represented by a / in the route spec and matching one /
     Slash,
@@ -24,6 +24,58 @@ pub enum Segment {
     Wildcard,
 }
 
+#[cfg(feature = "arbitrary")]
+#[derive(arbitrary::Arbitrary)]
+pub(crate) enum SegmentType {
+    Slash,
+    Dot,
+    Exact,
+    Param,
+    Wildcard,
+}
+
+#[cfg(feature = "arbitrary")]
+pub(crate) fn arbitrary_exact_segment(
+    u: &mut arbitrary::Unstructured<'_>,
+) -> arbitrary::Result<Segment> {
+    let len = u.int_in_range(1..=10)?;
+    let literal_chars = ('0'..='9')
+        .chain('A'..='Z')
+        .chain('a'..='z')
+        .chain(['-', '_', '~'])
+        .chain(['!', '$', '&', '\'', '(', ')', '*', '+', ',', ';', '='])
+        .collect::<Vec<_>>();
+    Ok(Segment::Exact(
+        std::iter::repeat_with(|| u.choose_iter(&literal_chars).copied())
+            .take(len)
+            .collect::<arbitrary::Result<SmartString>>()?,
+    ))
+}
+
+#[cfg(feature = "arbitrary")]
+pub(crate) fn arbitrary_param(u: &mut arbitrary::Unstructured<'_>) -> arbitrary::Result<Segment> {
+    let alpha = ('a'..='z').collect::<Vec<_>>();
+    let len = u.int_in_range(1..=10)?;
+    Ok(Segment::Param(
+        std::iter::repeat_with(|| u.choose_iter(&alpha).copied())
+            .take(len)
+            .collect::<arbitrary::Result<SmartString>>()?,
+    ))
+}
+
+#[cfg(feature = "arbitrary")]
+impl<'a> arbitrary::Arbitrary<'a> for Segment {
+    fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
+        Ok(match SegmentType::arbitrary(u)? {
+            SegmentType::Exact => arbitrary_exact_segment(u)?,
+            SegmentType::Param => arbitrary_param(u)?,
+            SegmentType::Dot => Segment::Dot,
+            SegmentType::Slash => Segment::Slash,
+            SegmentType::Wildcard => Segment::Wildcard,
+        })
+    }
+}
+
 impl PartialOrd for Segment {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
@@ -35,14 +87,11 @@ impl Ord for Segment {
         use std::cmp::Ordering::*;
         use Segment::*;
         match (self, other) {
-            (Exact(_), Exact(_))
-            | (Slash, Slash)
-            | (Dot, Slash)
-            | (Slash, Dot)
-            | (Dot, Dot)
-            | (Param(_), Param(_))
-            | (Wildcard, Wildcard) => Equal,
-
+            (Exact(l), Exact(r)) => l.cmp(r),
+            (Param(l), Param(r)) => l.cmp(r),
+            (Slash, Slash) | (Dot, Slash) | (Slash, Dot) | (Dot, Dot) | (Wildcard, Wildcard) => {
+                Equal
+            }
             (Dot, _) => Greater,
             (Exact(_), _) => Greater,
             (Param(_), Exact(_)) => Less,

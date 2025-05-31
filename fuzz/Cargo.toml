@@ -1,0 +1,23 @@
+[package]
+name = "routefinder-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2018"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+env_logger = "0.11.8"
+libfuzzer-sys = "0.4"
+
+[dependencies.routefinder]
+path = ".."
+features = ["arbitrary", "log"]
+
+[[bin]]
+name = "fuzz_target_1"
+path = "fuzz_targets/fuzz_target_1.rs"
+test = false
+doc = false
+bench = false

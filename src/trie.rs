@@ -1,219 +1,121 @@
-use crate::{RouteSpec, Segment};
+mod best_match;
+mod debug;
+mod insert;
+mod non_recursive;
+#[cfg(test)]
+mod test;
+
+use crate::{RouteSpec, TrieIter};
+pub(crate) use non_recursive::TrieSearcher;
+use smallvec::SmallVec;
 use smartstring::alias::String;
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, fmt::Formatter};
 
 #[derive(Default, Debug)]
 pub(crate) struct Trie(TrieNode);
+
+impl std::fmt::Display for Trie {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "\n/ ╾─╮")?;
+        debug::fmt_with_indent(&self.0, f, vec![(4, false)])
+    }
+}
 
 impl Trie {
     pub(crate) fn insert(&mut self, route_spec: RouteSpec) {
         self.0.insert(route_spec, 0);
     }
 
-    pub(crate) fn matches<'trie, 'a>(&'trie self, path: &'a str) -> Option<TrieMatch<'trie, 'a>> {
-        let mut captures = vec![];
-        let mut wildcard = None;
+    pub(crate) fn best_match<'trie, 'a>(
+        &'trie self,
+        path: &'a str,
+    ) -> Option<TrieMatch<'trie, 'a>> {
         let path = path.trim_start_matches('/').trim_end_matches('/');
         #[cfg(feature = "log")]
         log::trace!("{path}");
 
-        self.0
-            .matches(path, &mut captures, &mut wildcard)
-            .map(|route| {
-                captures.reverse();
-                TrieMatch(route, captures, wildcard)
-            })
+        self.0.best_match(path).map(|mut trie_match| {
+            trie_match.captures.reverse();
+            trie_match
+        })
+    }
+
+    pub(crate) fn match_iter<'trie, 'path>(
+        &'trie self,
+        path: &'path str,
+    ) -> TrieIter<'trie, 'path> {
+        let path = path.trim_start_matches('/').trim_end_matches('/');
+        TrieIter(TrieSearcher::new(self, path))
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct TrieMatch<'trie, 'a>(
-    pub(crate) &'trie RouteSpec,
-    pub(crate) Vec<&'a str>,
-    pub(crate) Option<&'a str>,
-);
+pub(crate) struct TrieMatch<'trie, 'a> {
+    pub(crate) route: &'trie RouteSpec,
+    pub(crate) captures: SmallVec<[&'a str; 5]>,
+    pub(crate) wildcard: Option<&'a str>,
+}
 
 #[derive(Default)]
-struct TrieNode {
-    slash: Option<Box<TrieNode>>,
-    dot: Option<Box<TrieNode>>,
+pub(crate) struct TrieNode {
+    paths: usize,
     statics: BTreeMap<String, TrieNode>,
-    params: Option<Box<TrieNode>>,
+    param: Option<Box<TrieNode>>,
     wildcard: Option<RouteSpec>,
     route: Option<RouteSpec>,
+    subsegment_matcher: Option<SubsegmentNode>,
+    minimum_length: Option<usize>,
+    /// (min, max) length of the keys in `statics`, maintained incrementally as
+    /// static children are added so `compute_state_sequence` stays O(1) per
+    /// insert rather than folding over every static child each time.
+    static_len_range: Option<(usize, usize)>,
+    states: SmallVec<[State; 10]>,
 }
 
-impl std::fmt::Debug for TrieNode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut map = f.debug_map();
-        if let Some(route) = &self.route {
-            map.entry(&format_args!(""), &format_args!("{route}"));
-        }
-
-        if let Some(wildcard) = &self.wildcard {
-            map.entry(&format_args!("*"), &format_args!("{wildcard}"));
-        }
-        if let Some(slash) = &self.slash {
-            map.entry(&format_args!("/"), slash);
-        }
-
-        if let Some(dot) = &self.dot {
-            map.entry(&format_args!("."), dot);
-        }
-
-        if let Some(params) = &self.params {
-            map.entry(&format_args!(":param"), params);
-        }
-
-        for (key, value) in &self.statics {
-            map.entry(key, value);
-        }
-
-        map.finish()
-    }
+#[derive(Default)]
+struct SubsegmentNode {
+    prefixes: BTreeMap<String, TrieNode>,
+    suffixes: BTreeMap<String, TrieNode>,
+    prefix_lengths: SmallVec<[usize; 2]>,
+    suffix_lengths: SmallVec<[usize; 2]>,
+    degenerate: BTreeMap<RouteSpec, TrieNode>,
 }
 
-impl TrieNode {
-    fn matches<'trie, 'a>(
-        &'trie self,
-        path: &'a str,
-        captures: &mut Vec<&'a str>,
-        wildcard: &mut Option<&'a str>,
-    ) -> Option<&'trie RouteSpec> {
-        #[cfg(feature = "log")]
-        log::trace!("{path:?}, {:#?}", self);
-
-        if let Some(route) = &self.route {
-            if path.is_empty() {
-                #[cfg(feature = "log")]
-                log::trace!("non-wildcard terminal {path:?}, {route}");
-                return Some(route);
-            }
-        }
-
-        match path.as_bytes().first() {
-            Some(b'/') => {
-                let rest = path.trim_start_matches("/");
-                #[cfg(feature = "log")]
-                log::trace!("slash {path:?} -> {rest:?}");
-                return self.slash.as_ref()?.matches(rest, captures, wildcard);
-            }
-            Some(b'.') => {
-                return self.dot.as_ref()?.matches(&path[1..], captures, wildcard);
-            }
-            _ => (),
-        }
-
-        #[cfg(feature = "memchr")]
-        let index = memchr::memchr2(b'.', b'/', path.as_bytes());
-        #[cfg(not(feature = "memchr"))]
-        let index = path.find(['.', '/']);
-
-        let (component, rest) = if let Some(index) = index {
-            path.split_at(index)
-        } else {
-            (path, "")
-        };
-
-        if let Some(route) = self
-            .statics
-            .get(component)
-            .and_then(|f| f.matches(rest, captures, wildcard))
-        {
-            return Some(route);
-        }
-
-        #[cfg(feature = "log")]
-        log::trace!("{path:?} -> {component:?} [/] {rest:?}");
-
-        if !component.is_empty() {
-            if let Some(param) = &self.params {
-                if let Some(route) = param.matches(rest, captures, wildcard) {
-                    captures.push(component);
-                    return Some(route);
-                }
-            }
-        }
-
-        if let Some(route) = &self.wildcard {
-            *wildcard = Some(path);
-            return Some(route);
-        }
-
-        if path.is_empty() {
-            return self.slash.as_ref()?.matches(path, captures, wildcard);
-        }
-
-        None
-    }
-
-    fn insert(&mut self, route: RouteSpec, depth: usize) {
-        let Some(segment) = route.segments().get(depth) else {
-            #[cfg(feature = "log")]
-            if let Some(previous) = &self.route {
-                log::warn!("replacing {previous} with {route}");
-            }
-            self.route = Some(route);
-            return;
-        };
-
-        match segment {
-            Segment::Slash => self.slash.get_or_insert_default().insert(route, depth + 1),
-            Segment::Dot => self.dot.get_or_insert_default().insert(route, depth + 1),
-            Segment::Exact(string) => self
-                .statics
-                .entry(string.clone())
-                .or_default()
-                .insert(route, depth + 1),
-            Segment::Param(_) => self.params.get_or_insert_default().insert(route, depth + 1),
-            Segment::Wildcard => {
-                #[cfg(feature = "log")]
-                if let Some(previous) = &self.wildcard {
-                    log::warn!("replacing {previous} with {route} for wildcard");
-                }
-
-                self.wildcard = Some(route);
-            }
-        }
-    }
+#[derive(Default, Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
+pub(crate) enum State {
+    #[default]
+    Start,
+    Terminal,
+    FindSlash,
+    Exact {
+        min: usize,
+        max: usize,
+    },
+    Prefixes {
+        min: usize,
+    },
+    Suffixes {
+        min: usize,
+    },
+    Degenerate {
+        index: usize,
+        min: usize,
+    },
+    Captures,
+    Wildcard,
+    Done,
 }
 
-#[cfg(test)]
-mod test {
-    use super::{Trie, TrieMatch};
+fn find_slash(path: &str) -> (&str, &str) {
+    #[cfg(feature = "memchr")]
+    let slash = memchr::memchr(b'/', path.as_bytes());
+    #[cfg(not(feature = "memchr"))]
+    let slash = path.find('/');
 
-    impl<const N: usize> PartialEq<(&str, [&str; N])> for TrieMatch<'_, '_> {
-        fn eq(&self, other: &(&str, [&str; N])) -> bool {
-            let (expected_route, expected_matches) = other;
-            let TrieMatch(route, matches, _wildcard) = &self;
-            expected_route == &route.to_string() && expected_matches == &**matches
-        }
-    }
-
-    impl<const N: usize> PartialEq<(&str, [&str; N], &str)> for TrieMatch<'_, '_> {
-        fn eq(&self, other: &(&str, [&str; N], &str)) -> bool {
-            let (expected_route, expected_matches, expected_wildcard) = other;
-            let TrieMatch(route, matches, wildcard) = &self;
-            expected_route == &route.to_string()
-                && expected_matches == &**matches
-                && Some(expected_wildcard) == wildcard.as_ref()
-        }
-    }
-
-    #[test]
-    fn building() {
-        let mut trie = Trie::default();
-        trie.insert("/a/b/c".parse().unwrap());
-        trie.insert("/a/:b/c".parse().unwrap());
-        trie.insert("/a/:b".parse().unwrap());
-        trie.insert("/a/*".parse().unwrap());
-        trie.insert("/a/:b.:c".parse().unwrap());
-
-        assert_eq!(trie.matches("a/b/c").unwrap(), ("/a/b/c", []));
-        assert_eq!(trie.matches("a/d/c").unwrap(), ("/a/:b/c", ["d"]));
-        assert_eq!(trie.matches("a/d").unwrap(), ("/a/:b", ["d"]));
-        assert_eq!(trie.matches("a/d.1").unwrap(), ("/a/:b.:c", ["d", "1"]));
-        assert_eq!(trie.matches("a/b/c/d").unwrap(), ("/a/*", [], "b/c/d"));
-        assert_eq!(trie.matches("a/b/d").unwrap(), ("/a/*", [], "b/d"));
+    if let Some(slash) = slash {
+        let (s, r) = path.split_at(slash);
+        (s, r.trim_start_matches('/'))
+    } else {
+        (path, "")
     }
 }
