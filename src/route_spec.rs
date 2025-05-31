@@ -1,12 +1,17 @@
 use crate::{Captures, Path, ReverseMatch, Segment};
+use smallvec::{smallvec, Array, SmallVec};
 use smartstring::alias::String as SmartString;
 use std::{
     cmp::Ordering,
     convert::TryFrom,
     fmt::{self, Debug, Display, Formatter},
-    iter,
-    str::FromStr,
 };
+
+#[cfg(feature = "arbitrary")]
+#[doc(hidden)] // fuzzing support; public only so the `fuzz` crate can reach it
+pub mod arbitrary;
+mod r#match;
+mod parse;
 
 /// Routefinder's representation of the parsed route
 ///
@@ -16,13 +21,32 @@ use std::{
 pub struct RouteSpec {
     source: Option<SmartString>,
     segments: Vec<Segment>,
-    min_length: usize,
+    /// A per-path-segment classification derived from `segments` (via
+    /// [`RouteSpec::populate_segment_groups`] in `optimize`). This is the
+    /// canonical sort key for [`Ord`]/[`PartialEq`]: it groups each
+    /// slash-delimited segment into exact/prefix/suffix/capture/wildcard/complex
+    /// so route specificity can be compared a group at a time. `segments`
+    /// remains the source of truth that the trie is built from; this is a cache
+    /// kept consistent whenever the spec is constructed.
+    segment_groups: Vec<SegmentGroup>,
+    pub(crate) min_length: usize,
     dot_count: usize,
+    pub(crate) handler_index: Option<usize>,
+}
+
+#[derive(Eq, PartialEq, Debug, Clone)]
+enum SegmentGroup {
+    Exact(SmartString),
+    Capture(SmartString),
+    Prefix(SmartString, SmartString),
+    Suffix(SmartString, SmartString),
+    Wildcard,
+    Complex(Vec<Segment>),
 }
 
 impl PartialEq for RouteSpec {
     fn eq(&self, other: &Self) -> bool {
-        self.segments == other.segments
+        self.segment_groups == other.segment_groups
     }
 }
 
@@ -43,10 +67,6 @@ impl Display for RouteSpec {
 }
 
 impl RouteSpec {
-    fn dots(&self) -> usize {
-        self.dot_count
-    }
-
     /// Retrieve a reference to the original route definition, if this
     /// routespec was parsed from a string representation. If this
     /// routespec was created another way, this will return None.
@@ -60,94 +80,6 @@ impl RouteSpec {
     }
 
     #[inline]
-    fn inner_match<'path>(
-        &self,
-        path: &Path<'path>,
-        captures: &mut Vec<&'path str>,
-    ) -> Option<&'path str> {
-        let mut path_str = path.trimmed;
-        let mut peek = self.segments.iter().peekable();
-
-        while let Some(segment) = peek.next() {
-            path_str = match segment {
-                Segment::Exact(e) => {
-                    if path_str.starts_with(&**e) {
-                        &path_str[e.len()..]
-                    } else {
-                        return None;
-                    }
-                }
-
-                Segment::Param(_) => {
-                    if path_str.is_empty() {
-                        return None;
-                    }
-                    match peek.peek() {
-                        None | Some(Segment::Slash) => {
-                            #[cfg(feature = "memchr")]
-                            let capture = memchr::memchr(b'/', path_str.as_bytes())
-                                .map(|index| &path_str[..index])
-                                .unwrap_or(path_str);
-                            #[cfg(not(feature = "memchr"))]
-                            let capture = path_str.split('/').next()?;
-
-                            captures.push(capture);
-                            &path_str[capture.len()..]
-                        }
-
-                        Some(Segment::Dot) => {
-                            #[cfg(feature = "memchr")]
-                            let index = memchr::memchr2(b'.', b'/', path_str.as_bytes())?;
-                            #[cfg(not(feature = "memchr"))]
-                            let index = path_str.find(['.', '/'])?;
-
-                            if path_str.chars().nth(index) == Some('.') {
-                                captures.push(&path_str[..index]);
-                                &path_str[index..] // we leave the dot so it can be matched by the Segment::Dot
-                            } else {
-                                return None;
-                            }
-                        }
-                        _ => panic!(
-                            "param must be followed by a dot, a slash, or the end of the route"
-                        ),
-                    }
-                }
-
-                Segment::Wildcard => match peek.peek() {
-                    Some(_) => panic!(concat!(
-                        "wildcard must currently be the terminal segment, ",
-                        "please file an issue if you have a use case for a mid-route *"
-                    )),
-                    None => {
-                        captures.push(path_str);
-                        ""
-                    }
-                },
-
-                Segment::Slash => {
-                    match (
-                        path_str.chars().take_while(|c| *c == '/').count(),
-                        peek.peek(),
-                    ) {
-                        (0, None) => path_str,
-                        (0, Some(Segment::Wildcard)) => path_str,
-                        (n, Some(_)) => &path_str[n..],
-                        _ => return None,
-                    }
-                }
-
-                Segment::Dot => match path_str.chars().next() {
-                    Some('.') => &path_str[1..],
-                    _ => return None,
-                },
-            }
-        }
-
-        Some(path_str)
-    }
-
-    #[inline]
     fn passes_optimization_criteria(&self, path: &Path<'_>) -> bool {
         self.min_length <= path.trimmed.len()
     }
@@ -155,21 +87,28 @@ impl RouteSpec {
     /// Returns a vec of captured str slices for this routespec
     #[inline]
     pub fn matches<'path>(&self, path: &'path str) -> Option<Vec<&'path str>> {
-        self.matches_path(&path.into())
-    }
+        let mut captures: SmallVec<[&'path str; 5]> = smallvec![];
 
-    #[inline]
-    pub(crate) fn matches_path<'path>(&self, path: &Path<'path>) -> Option<Vec<&'path str>> {
-        if !self.passes_optimization_criteria(path) {
-            return None;
-        }
-        let mut captures = vec![];
-        let p = self.inner_match(path, &mut captures)?;
-        if p.is_empty() || p == "/" {
-            Some(captures)
+        if self.matches_path(&path.into(), &mut captures) {
+            Some(captures.into_vec())
         } else {
             None
         }
+    }
+
+    #[inline]
+    pub(crate) fn matches_path<'path>(
+        &self,
+        path: &Path<'path>,
+        captures: &mut SmallVec<impl Array<Item = &'path str>>,
+    ) -> bool {
+        if !self.passes_optimization_criteria(path) {
+            return false;
+        }
+        let Some(p) = self.inner_match(path, captures) else {
+            return false;
+        };
+        p.is_empty() || p == "/"
     }
 
     /// populate this route spec with the params and/or wildcard from
@@ -218,80 +157,69 @@ impl RouteSpec {
         }
     }
 
+    fn compact(&mut self) {
+        let mut index = 1;
+        let segments = &mut self.segments;
+        use Segment::*;
+        loop {
+            let new_previous = {
+                let current = segments.get(index);
+                let next = segments.get(index + 1);
+                let previous = segments.get(index - 1);
+                match (previous, current, next) {
+                    (Some(Exact(a)), Some(Dot), Some(Exact(b))) => Some((format!("{a}.{b}"), true)),
+                    (Some(Exact(a)), Some(Exact(b)), _) => Some((format!("{a}{b}"), false)),
+                    _ => None,
+                }
+            };
+            if let Some((new_previous, skip_next)) = new_previous {
+                segments[index - 1] = Exact(new_previous.into());
+                if skip_next {
+                    segments.remove(index + 1);
+                }
+                segments.remove(index);
+            } else if index < segments.len() {
+                index += 1;
+            } else {
+                break;
+            }
+        }
+    }
+
+    fn populate_segment_groups(&mut self) {
+        use Segment::*;
+        self.segment_groups.clear();
+        let mut segments = &self.segments[..];
+        loop {
+            let index = segments
+                .iter()
+                .position(|x| x == &Slash)
+                .unwrap_or(segments.len());
+            let (current, rest) = segments.split_at(index);
+            self.segment_groups.push(match current {
+                [] => {
+                    break;
+                }
+                [Exact(e)] => SegmentGroup::Exact(e.clone()),
+                [Param(e)] => SegmentGroup::Capture(e.clone()),
+                [Wildcard] => SegmentGroup::Wildcard,
+                [Exact(e), Dot, Param(c)] => SegmentGroup::Prefix(e.clone(), c.clone()),
+                [Param(c), Dot, Exact(e)] => SegmentGroup::Suffix(e.clone(), c.clone()),
+                other => SegmentGroup::Complex(other.to_vec()),
+            });
+            if let Some(rest) = rest.get(1..) {
+                segments = rest;
+            } else {
+                break;
+            }
+        }
+    }
+
     fn optimize(mut self) -> Self {
+        self.compact();
+        self.populate_segment_groups();
         self.compute_optimizations();
         self
-    }
-}
-
-impl FromStr for RouteSpec {
-    type Err = String;
-
-    fn from_str(source: &str) -> Result<Self, Self::Err> {
-        let mut last_index = 0;
-        let source_trimmed = source.trim_start_matches('/').trim_end_matches('/');
-        #[cfg(feature = "memchr")]
-        let index_iter = memchr::memchr2_iter(b'.', b'/', source_trimmed.as_bytes());
-
-        #[cfg(not(feature = "memchr"))]
-        let index_iter = source_trimmed.match_indices(['.', '/']).map(|(i, _)| i);
-
-        let segments = index_iter
-            .chain(iter::once_with(|| source_trimmed.len()))
-            .try_fold(vec![], |mut acc, index| {
-                let first_char = if last_index == 0 {
-                    None
-                } else {
-                    source_trimmed.chars().nth(last_index - 1)
-                };
-
-                let section = &source_trimmed[last_index..index];
-                last_index = index + 1;
-
-                let segment = match (section.chars().next(), section.len()) {
-                    (Some('*'), 1) => Some(Segment::Wildcard),
-                    (Some('*'), _) => {
-                        return Err(format!(
-                            concat!(
-                                "since there can only be one wildcard,",
-                                " it doesn't need a name. replace `{}` with `*`"
-                            ),
-                            section
-                        ));
-                    }
-                    (Some(':'), 1) => {
-                        return Err(String::from("params must be named"));
-                    }
-                    (Some(':'), _) => Some(Segment::Param(SmartString::from(&section[1..]))),
-                    (None, 0) => None,
-                    (_, _) => Some(Segment::Exact(SmartString::from(section))),
-                };
-
-                if first_char == Some('.') {
-                    if let Some(Segment::Exact(s)) = acc.last_mut() {
-                        s.push('.');
-                    } else {
-                        acc.push(Segment::Dot);
-                    }
-                }
-
-                if let Some(segment) = segment {
-                    if first_char == Some('/') {
-                        acc.push(Segment::Slash);
-                    }
-                    acc.push(segment);
-                }
-
-                Ok(acc)
-            })?;
-
-        Ok(Self {
-            source: Some(SmartString::from(source)),
-            segments,
-            min_length: 0,
-            dot_count: 0,
-        }
-        .optimize())
     }
 }
 
@@ -317,6 +245,8 @@ impl From<Vec<Segment>> for RouteSpec {
             source: None,
             min_length: 0,
             dot_count: 0,
+            segment_groups: vec![],
+            handler_index: None,
         }
         .optimize()
     }
@@ -328,18 +258,58 @@ impl PartialOrd for RouteSpec {
     }
 }
 
+macro_rules! return_if_unequal {
+    ($a:expr, $b:expr) => {
+        match ($a, $b) {
+            (a, b) => match a.cmp(b) {
+                Ordering::Equal => (),
+                other => {
+                    return other;
+                }
+            },
+        }
+    };
+}
+
 impl Ord for RouteSpec {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.segments
-            .iter()
-            .zip(&other.segments)
-            .map(|(mine, theirs)| mine.cmp(theirs))
-            .chain(iter::once_with(|| self.dots().cmp(&other.dots())))
-            .chain(iter::once_with(|| {
-                other.segments.len().cmp(&self.segments.len())
-            }))
-            .find(|c| *c != Ordering::Equal)
-            .unwrap_or(Ordering::Equal)
-            .reverse()
+        use Ordering::*;
+        use SegmentGroup::*;
+        for (a, b) in self.segment_groups.iter().zip(&other.segment_groups) {
+            match (a, b) {
+                (Exact(_), _) => return Less,
+                (_, Exact(_)) => return Greater,
+                (Prefix(_, _), _) => return Less,
+                (_, Prefix(_, _)) => return Greater,
+                (Suffix(_, _), _) => return Less,
+                (_, Suffix(_, _)) => return Greater,
+                (Complex(_), _) => return Less,
+                (_, Complex(_)) => return Greater,
+                (Capture(_), _) => return Less,
+                (_, Capture(_)) => return Greater,
+                _ => (),
+            }
+        }
+
+        return_if_unequal!(self.segment_groups.len(), &other.segment_groups.len());
+
+        for (a, b) in self.segment_groups.iter().zip(&other.segment_groups) {
+            match (a, b) {
+                (Exact(a), Exact(b)) => return_if_unequal!(a, b),
+                (Prefix(exact_a, param_a), Prefix(exact_b, param_b)) => {
+                    return_if_unequal!(exact_a, exact_b);
+                    return_if_unequal!(param_a, param_b);
+                }
+                (Suffix(exact_a, param_a), Suffix(exact_b, param_b)) => {
+                    return_if_unequal!(exact_a, exact_b);
+                    return_if_unequal!(param_a, param_b);
+                }
+                (Complex(a), Complex(b)) => return_if_unequal!(b.len(), &a.len()),
+                (Capture(a), Capture(b)) => return_if_unequal!(a, b),
+                _ => (),
+            }
+        }
+
+        Equal
     }
 }

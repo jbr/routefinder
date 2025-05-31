@@ -63,3 +63,20 @@ pub(crate) use path::Path;
 
 mod trie;
 pub(crate) use trie::Trie;
+
+#[cfg(feature = "arbitrary")]
+#[doc(hidden)]
+pub use route_spec::arbitrary;
+
+use crate::trie::{TrieMatch, TrieSearcher};
+
+#[derive(Debug)]
+pub(crate) struct TrieIter<'trie, 'path>(pub(crate) TrieSearcher<'trie, 'path>);
+
+impl<'trie, 'path> Iterator for TrieIter<'trie, 'path> {
+    type Item = TrieMatch<'trie, 'path>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}

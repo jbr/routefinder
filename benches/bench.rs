@@ -1,5 +1,6 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::Criterion;
 use routefinder::Router;
+use std::time::Duration;
 
 fn benchmark1(c: &mut Criterion) {
     let router = Router::new_with_routes([
@@ -70,11 +71,20 @@ fn benchmark2(c: &mut Criterion) {
         b.iter(|| Router::new_with_routes(ROUTES).unwrap())
     });
 
-    c.bench_function("match various route patterns", |b| {
+    c.bench_function("best match various route patterns", |b| {
         let router = Router::new_with_routes(ROUTES).unwrap();
         b.iter(|| {
             for path in PATHS {
                 let _ = router.best_match(path);
+            }
+        })
+    });
+
+    c.bench_function("next match various route patterns", |b| {
+        let router = Router::new_with_routes(ROUTES).unwrap();
+        b.iter(|| {
+            for path in PATHS {
+                let _ = router.match_iter(path).next();
             }
         })
     });
@@ -89,5 +99,127 @@ fn benchmark2(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, benchmark1, benchmark2);
-criterion_main!(benches);
+const ROUTES2: [(&str, &str); 13] = [
+    ("first/prefix.suffix", "full exact"),
+    ("first/prefix.:suffix", "exact prefix"),
+    ("first/:prefix.suffix", "exact suffix"),
+    ("first/:prefix.:suffix", "exact degenerate"),
+    ("first/:param", "exact param"),
+    ("first/*", "exact star"),
+    (":first/prefix.suffix", "param exact"),
+    (":first/prefix.:suffix", "param prefix"),
+    (":first/:prefix.suffix", "param suffix"),
+    (":first/:prefix.:suffix", "param degenerate"),
+    (":first/:param", "full param"),
+    (":first/*", "param star"),
+    ("*", "star"),
+];
+
+const PATHS2: [&str; 14] = [
+    "/first/prefix.suffix",
+    "/first/prefix.different",
+    "/first/different.suffix",
+    "/first/diff1.diff2",
+    "/first/different",
+    "/first/different/path",
+    "/first",
+    "/different/prefix.suffix",
+    "/different/prefix.different",
+    "/different/different.suffix",
+    "/different/different.different",
+    "/different/different",
+    "/different/different/different",
+    "/different",
+];
+
+fn benchmark3(c: &mut Criterion) {
+    c.bench_function("bench 3 static router creation", |b| {
+        b.iter(|| Router::new_with_routes(ROUTES2).unwrap())
+    });
+
+    c.bench_function("bench 3 best match", |b| {
+        let router = Router::new_with_routes(ROUTES2).unwrap();
+        b.iter(|| {
+            for path in PATHS2 {
+                let _ = router.best_match(path);
+            }
+        })
+    });
+
+    c.bench_function("bench 3 next", |b| {
+        let router = Router::new_with_routes(ROUTES2).unwrap();
+        b.iter(|| {
+            for path in PATHS2 {
+                let _ = router.match_iter(path).next();
+            }
+        })
+    });
+
+    c.bench_function("bench 3 all matches", |b| {
+        let router = Router::new_with_routes(ROUTES2).unwrap();
+        b.iter(|| {
+            for path in PATHS2 {
+                let _ = router.matches(path);
+            }
+        })
+    });
+}
+fn benchmark3_comparison(c: &mut Criterion) {
+    c.bench_function("bench 3 comparison static router creation", |b| {
+        b.iter(|| {
+            let mut router = published::Router::new();
+            for (route, handler) in ROUTES2 {
+                router.add(route, handler).unwrap();
+            }
+        })
+    });
+
+    c.bench_function("bench 3 comparison best match", |b| {
+        let mut router = published::Router::new();
+        for (route, handler) in ROUTES2 {
+            router.add(route, handler).unwrap();
+        }
+        b.iter(|| {
+            for path in PATHS2 {
+                let _ = router.best_match(path);
+            }
+        })
+    });
+
+    c.bench_function("bench 3 comparison next", |b| {
+        let mut router = published::Router::new();
+        for (route, handler) in ROUTES2 {
+            router.add(route, handler).unwrap();
+        }
+        b.iter(|| {
+            for path in PATHS2 {
+                let _ = router.match_iter(path).next();
+            }
+        })
+    });
+
+    c.bench_function("bench 3 comparison all matches", |b| {
+        let mut router = published::Router::new();
+        for (route, handler) in ROUTES2 {
+            router.add(route, handler).unwrap();
+        }
+
+        b.iter(|| {
+            for path in PATHS2 {
+                let _ = router.matches(path);
+            }
+        })
+    });
+}
+
+fn main() {
+    let mut criterion = Criterion::default()
+        .configure_from_args()
+        .measurement_time(Duration::from_secs(20))
+        .sample_size(500);
+    benchmark1(&mut criterion);
+    benchmark2(&mut criterion);
+    benchmark3(&mut criterion);
+    benchmark3_comparison(&mut criterion);
+    Criterion::default().configure_from_args().final_summary();
+}
