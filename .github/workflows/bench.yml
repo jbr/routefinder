@@ -16,7 +16,7 @@ jobs:
           toolchain: nightly
           override: true
       - name: Rust Cache
-        uses: Swatinem/rust-cache@v2.7.8
+        uses: Swatinem/rust-cache@v2.8.2
       - name: Run benchmark
         run: cargo bench --bench bench -- --output-format bencher | tee output.txt
       - name: Download previous benchmark data
