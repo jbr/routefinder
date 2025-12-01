@@ -23,7 +23,7 @@ smartcow = "0.2.1"
 smartstring = "1.0.1"
 
 [dev-dependencies]
-criterion = { version = "0.6.0", features = ["html_reports"] }
+criterion = { version = "0.8.0", features = ["html_reports"] }
 env_logger = "0.11.8"
 test-harness = "0.3.1"
 
