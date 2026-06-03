@@ -142,7 +142,19 @@ impl<Handler> Router<Handler> {
 
     fn insert_route_spec(&mut self, mut route_spec: RouteSpec, handler: Handler) {
         route_spec.handler_index = Some(self.routes.len());
-        self.trie.insert(route_spec.clone());
+
+        // A route with optional groups is expanded into flat variant specs that
+        // all share this route's handler_index; the canonical (optional) spec is
+        // what we store and hand back as `Match::route`. Non-optional routes
+        // insert a single spec, as before.
+        if route_spec.has_optional() {
+            for variant in route_spec.expand() {
+                self.trie.insert(variant);
+            }
+        } else {
+            self.trie.insert(route_spec.clone());
+        }
+
         self.routes.push((route_spec, handler));
     }
 
@@ -183,11 +195,15 @@ impl<Handler> Router<Handler> {
             captures.push(wildcard);
         }
 
-        let (_, handler) = self.routes.get(route.handler_index?)?;
+        // Hand back the canonical (as-registered) spec, not the expanded trie
+        // variant, so `Match::route()` reflects what the user typed. Capture
+        // names still resolve correctly because the captured values are a
+        // positional prefix of the canonical's params (see `capture_segments`).
+        let (canonical, handler) = self.routes.get(route.handler_index?)?;
 
         Some(Match {
             path,
-            route,
+            route: canonical,
             captures,
             handler,
         })
@@ -304,14 +320,14 @@ impl<'router, 'path, Handler> Iterator for MatchIter<'router, 'path, Handler> {
             wildcard,
         } = self.trie_iter.next()?;
         let handler_index = route.handler_index?;
-        let (_, handler) = self.router.routes.get(handler_index)?;
+        let (canonical, handler) = self.router.routes.get(handler_index)?;
 
         if let Some(wildcard) = wildcard {
             captures.push(wildcard);
         }
         Some(Match {
             path: self.path,
-            route,
+            route: canonical,
             captures,
             handler,
         })

@@ -42,6 +42,10 @@ enum SegmentGroup {
     Suffix(SmartString, SmartString),
     Wildcard,
     Complex(Vec<Segment>),
+    /// The trailing optional group, holding its inner segments verbatim so that
+    /// `Eq` (and therefore `get_handler`) distinguishes e.g. `/a/:b` from
+    /// `/a[/:b]`. Only ever the final group.
+    Optional(Vec<Segment>),
 }
 
 impl PartialEq for RouteSpec {
@@ -50,19 +54,28 @@ impl PartialEq for RouteSpec {
     }
 }
 
+fn fmt_segments(segments: &[Segment], f: &mut Formatter<'_>) -> fmt::Result {
+    for segment in segments {
+        match segment {
+            Segment::Slash => f.write_str("/")?,
+            Segment::Dot => f.write_str(".")?,
+            Segment::Exact(s) => f.write_str(s)?,
+            Segment::Param(p) => f.write_fmt(format_args!(":{p}"))?,
+            Segment::Wildcard => f.write_str("*")?,
+            Segment::Optional(inner) => {
+                f.write_str("[")?;
+                fmt_segments(inner, f)?;
+                f.write_str("]")?;
+            }
+        };
+    }
+    Ok(())
+}
+
 impl Display for RouteSpec {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_str("/")?;
-        for segment in &self.segments {
-            match segment {
-                Segment::Slash => f.write_str("/")?,
-                Segment::Dot => f.write_str(".")?,
-                Segment::Exact(s) => f.write_str(s)?,
-                Segment::Param(p) => f.write_fmt(format_args!(":{p}"))?,
-                Segment::Wildcard => f.write_str("*")?,
-            };
-        }
-        Ok(())
+        fmt_segments(&self.segments, f)
     }
 }
 
@@ -77,6 +90,50 @@ impl RouteSpec {
     /// Slice accessor for the component [`Segment`]s in this RouteSpec
     pub fn segments(&self) -> &[Segment] {
         self.segments.as_slice()
+    }
+
+    /// True if this spec contains any optional `[...]` group.
+    pub(crate) fn has_optional(&self) -> bool {
+        self.segments
+            .iter()
+            .any(|s| matches!(s, Segment::Optional(_)))
+    }
+
+    /// Expand a (possibly optional-containing) spec into its flat,
+    /// `Optional`-free variant specs, in prefix-closed order (shortest first).
+    /// Each variant is independently optimized and inherits this spec's
+    /// `handler_index`. A spec with no optionals expands to a single clone of
+    /// itself.
+    ///
+    /// The trie is always fed these variants, never the optional spec itself.
+    pub(crate) fn expand(&self) -> Vec<RouteSpec> {
+        expand_segments(&self.segments)
+            .into_iter()
+            .map(|segments| {
+                let mut spec = RouteSpec::from(segments);
+                spec.handler_index = self.handler_index;
+                spec
+            })
+            .collect()
+    }
+
+    /// The `Param`/`Wildcard` segments in match order, descending into optional
+    /// groups. Used to name positional captures: because optionals are trailing
+    /// and prefix-closed, the captured values are always a prefix of this
+    /// sequence, so a positional zip names them correctly.
+    pub(crate) fn capture_segments(&self) -> Vec<&Segment> {
+        fn collect<'a>(segments: &'a [Segment], out: &mut Vec<&'a Segment>) {
+            for segment in segments {
+                match segment {
+                    Segment::Param(_) | Segment::Wildcard => out.push(segment),
+                    Segment::Optional(inner) => collect(inner, out),
+                    _ => {}
+                }
+            }
+        }
+        let mut out = vec![];
+        collect(&self.segments, &mut out);
+        out
     }
 
     #[inline]
@@ -102,6 +159,23 @@ impl RouteSpec {
         path: &Path<'path>,
         captures: &mut SmallVec<impl Array<Item = &'path str>>,
     ) -> bool {
+        // An optional spec is matched by trying its flat variants directly
+        // (most-specific first) so `inner_match` never has to reason about
+        // optionality. This is the cold path; routers match via the trie, which
+        // is always fed the expanded variants.
+        if self.has_optional() {
+            let mut variants = self.expand();
+            variants.sort();
+            let start = captures.len();
+            for variant in &variants {
+                if variant.matches_path(path, captures) {
+                    return true;
+                }
+                captures.truncate(start);
+            }
+            return false;
+        }
+
         if !self.passes_optimization_criteria(path) {
             return false;
         }
@@ -142,6 +216,9 @@ impl RouteSpec {
                     self.min_length += 1;
                 }
                 Segment::Wildcard => {}
+                // An optional group can be absent, so it contributes nothing to
+                // the minimum length (the all-optionals-absent variant).
+                Segment::Optional(_) => {}
             }
         }
 
@@ -189,7 +266,15 @@ impl RouteSpec {
     fn populate_segment_groups(&mut self) {
         use Segment::*;
         self.segment_groups.clear();
-        let mut segments = &self.segments[..];
+
+        // The optional group (if any) is always the final segment; peel it off
+        // so the mandatory lead groups normally, then append it as its own group.
+        let (lead, optional) = match self.segments.split_last() {
+            Some((Optional(inner), head)) => (head, Some(inner.clone())),
+            _ => (&self.segments[..], None),
+        };
+
+        let mut segments = lead;
         loop {
             let index = segments
                 .iter()
@@ -213,6 +298,10 @@ impl RouteSpec {
                 break;
             }
         }
+
+        if let Some(inner) = optional {
+            self.segment_groups.push(SegmentGroup::Optional(inner));
+        }
     }
 
     fn optimize(mut self) -> Self {
@@ -220,6 +309,25 @@ impl RouteSpec {
         self.populate_segment_groups();
         self.compute_optimizations();
         self
+    }
+}
+
+/// Expand a segment sequence into its `Optional`-free variants. Because the
+/// optional group is always the final segment at each level, peeling it off the
+/// tail yields the "absent" variant (the head) plus, for each expansion of the
+/// inner group, a "present" variant.
+fn expand_segments(segments: &[Segment]) -> Vec<Vec<Segment>> {
+    match segments.split_last() {
+        Some((Segment::Optional(inner), head)) => {
+            let mut variants = vec![head.to_vec()];
+            for inner_variant in expand_segments(inner) {
+                let mut present = head.to_vec();
+                present.extend(inner_variant);
+                variants.push(present);
+            }
+            variants
+        }
+        _ => vec![segments.to_vec()],
     }
 }
 
@@ -287,6 +395,9 @@ impl Ord for RouteSpec {
                 (_, Complex(_)) => return Greater,
                 (Capture(_), _) => return Less,
                 (_, Capture(_)) => return Greater,
+                // A trailing optional group is least specific (it can be absent).
+                (Optional(_), _) => return Greater,
+                (_, Optional(_)) => return Less,
                 _ => (),
             }
         }

@@ -53,3 +53,7 @@ harness = false
 [[bench]]
 name = "scaling"
 harness = false
+
+[[bench]]
+name = "optional"
+harness = false

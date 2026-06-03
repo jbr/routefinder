@@ -35,9 +35,8 @@ impl<'router, 'path, Handler> Match<'router, 'path, Handler> {
     /// Returns the [`Captures`] for this match
     pub fn captures(&self) -> Captures<'router, 'path> {
         self.route
-            .segments()
-            .iter()
-            .filter(|s| matches!(s, Segment::Param(_) | Segment::Wildcard))
+            .capture_segments()
+            .into_iter()
             .zip(&self.captures)
             .fold(
                 Captures::default(),

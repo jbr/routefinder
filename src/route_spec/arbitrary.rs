@@ -40,6 +40,7 @@ impl<'a> Arbitrary<'a> for FuzzPair {
                         }
                     }
                 }
+                Segment::Optional(_) => unreachable!("arbitrary never generates optional segments"),
             }
         }
 
@@ -69,6 +70,10 @@ impl<'a> Arbitrary<'a> for RouteSpec {
                 }
 
                 Some(Segment::Wildcard) => break,
+
+                Some(Segment::Optional(_)) => {
+                    unreachable!("arbitrary never generates optional segments")
+                }
             };
 
             let segment = match segment_type {
