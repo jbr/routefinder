@@ -22,6 +22,15 @@ pub enum Segment {
     /// (similar to the regex `(.*)$`). There can only be one wildcard
     /// per route spec
     Wildcard,
+    /// represented by `[...]` in the spec, this marks a trailing,
+    /// possibly-nested optional group. For example `/some[/:opt[.:ext]]`
+    /// parses to `[Exact("some"), Optional([Slash, Param("opt"),
+    /// Optional([Dot, Param("ext")])])]`. An `Optional` is always the final
+    /// segment at its level (closing `]`s are terminal), and the contained
+    /// segments include their own leading delimiter. The trie never sees this
+    /// variant: a route containing it is expanded into flat variant specs at
+    /// insertion time (see [`RouteSpec::expand`][crate::RouteSpec::expand]).
+    Optional(Vec<Segment>),
 }
 
 #[cfg(feature = "arbitrary")]
@@ -87,6 +96,12 @@ impl Ord for Segment {
         use std::cmp::Ordering::*;
         use Segment::*;
         match (self, other) {
+            // Optional only appears in canonical specs (never in the trie), and
+            // ranks as least specific so the order stays total and consistent
+            // with the derived Eq.
+            (Optional(l), Optional(r)) => l.cmp(r),
+            (Optional(_), _) => Less,
+            (_, Optional(_)) => Greater,
             (Exact(l), Exact(r)) => l.cmp(r),
             (Param(l), Param(r)) => l.cmp(r),
             (Slash, Slash) | (Dot, Slash) | (Slash, Dot) | (Dot, Dot) | (Wildcard, Wildcard) => {

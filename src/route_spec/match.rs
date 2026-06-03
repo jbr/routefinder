@@ -84,6 +84,12 @@ impl RouteSpec {
                     Some('.') => &path_str[1..],
                     _ => return None,
                 },
+
+                // Optional specs are expanded into flat variants before reaching
+                // inner_match (see RouteSpec::matches_path), so this is never hit.
+                Segment::Optional(_) => {
+                    unreachable!("optional segments are expanded before matching")
+                }
             }
         }
 

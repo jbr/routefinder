@@ -91,6 +91,11 @@ impl TrieNode {
                     }
 
                     Segment::Wildcard => {}
+
+                    // The trie is only ever fed expanded (flat) variant specs.
+                    Segment::Optional(_) => {
+                        unreachable!("optional segments are expanded before insertion")
+                    }
                 }
             }
 
