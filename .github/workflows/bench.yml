@@ -20,7 +20,7 @@ jobs:
       - name: Run benchmark
         run: cargo bench --bench bench -- --output-format bencher | tee output.txt
       - name: Download previous benchmark data
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ./cache
           key: ${{ runner.os }}-benchmark
