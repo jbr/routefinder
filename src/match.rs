@@ -1,5 +1,3 @@
-use smallvec::SmallVec;
-
 use crate::{Capture, Captures, RouteSpec, Segment};
 use std::{cmp::Ordering, ops::Deref};
 
@@ -12,7 +10,7 @@ use std::{cmp::Ordering, ops::Deref};
 pub struct Match<'router, 'path, Handler> {
     pub(crate) path: &'path str,
     pub(crate) route: &'router RouteSpec,
-    pub(crate) captures: SmallVec<[&'path str; 5]>,
+    pub(crate) captures: Vec<&'path str>,
     pub(crate) handler: &'router Handler,
 }
 
