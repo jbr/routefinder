@@ -1,4 +1,4 @@
-use smartcow::SmartCow;
+use crate::compact_cow::CompactCow;
 use std::{
     borrow::Cow,
     iter::FromIterator,
@@ -8,8 +8,8 @@ use std::{
 /// An individual key-value pair
 #[derive(Debug, Default)]
 pub struct Capture<'key, 'value> {
-    key: SmartCow<'key>,
-    value: SmartCow<'value>,
+    key: CompactCow<'key>,
+    value: CompactCow<'value>,
 }
 
 impl<'key, 'value> Capture<'key, 'value> {
@@ -48,7 +48,7 @@ impl<'key, 'value> Capture<'key, 'value> {
 #[derive(Debug, Default)]
 pub struct Captures<'keys, 'values> {
     pub(crate) params: Vec<Capture<'keys, 'values>>,
-    pub(crate) wildcard: Option<SmartCow<'values>>,
+    pub(crate) wildcard: Option<CompactCow<'values>>,
 }
 
 impl<'keys, 'values> Captures<'keys, 'values> {
@@ -64,12 +64,12 @@ impl<'keys, 'values> Captures<'keys, 'values> {
     pub fn into_owned(self) -> Captures<'static, 'static> {
         Captures {
             params: self.params.into_iter().map(|c| c.into_owned()).collect(),
-            wildcard: self.wildcard.map(SmartCow::into_owned),
+            wildcard: self.wildcard.map(CompactCow::into_owned),
         }
     }
 
     /// returns a slice of captures
-    pub fn params(&self) -> &[Capture] {
+    pub fn params(&self) -> &[Capture<'_, '_>] {
         &self.params[..]
     }
 

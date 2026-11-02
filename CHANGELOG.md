@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Breaking:** `Segment::Exact` and `Segment::Param` now hold an opaque `Text` type (derefs to
+  `str`) instead of a `smartstring::SmartString`.
+- Replaced the unmaintained `smartstring` / `smartcow` dependencies (RUSTSEC-2026-0249) with
+  `compact_str`.
+
 ## [0.5.4](https://github.com/jbr/routefinder/compare/v0.5.3...v0.5.4) - 2024-02-01
 
 ### Added
