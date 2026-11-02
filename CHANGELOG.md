@@ -6,6 +6,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/jbr/routefinder/compare/v0.5.4...v0.6.0) - 2026-11-02
+
+### Added
+
+- [**breaking**] replace smartstring with compact_str
+- finish trie reimplementation
+- switch to trie implementation
+- minimum length check
+
+### Fixed
+
+- unreleased trie regression: wildcard overlap with exact match
+- correctly normalize multiple slashes
+
+### Other
+
+- move unreleased trie implementation to dev/trie
+- add some additional tests
+- remove bench from main ci task
+- attempt to run benchmarks in CI
+- add further benchmarks
+- *(deps)* update memchr
+- *(deps)* upgrade criterion
+- add convco
+- Bump Swatinem/rust-cache from 2.7.3 to 2.7.7
+- Bump actions/configure-pages from 4 to 5
+- *(security)* add security.md
+- *(legal)* add license files
+- *(actions)* add memchr and bench tests to ci
+
 ### Changed
 - **Breaking:** `Segment::Exact` and `Segment::Param` now hold an opaque `Text` type (derefs to
   `str`) instead of a `smartstring::SmartString`.
