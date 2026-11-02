@@ -1,5 +1,5 @@
-use crate::{Captures, Path, ReverseMatch, Segment};
-use smartstring::alias::String as SmartString;
+use crate::{Captures, Path, ReverseMatch, Segment, Text};
+use compact_str::CompactString;
 use std::{
     cmp::Ordering,
     convert::TryFrom,
@@ -14,7 +14,7 @@ use std::{
 /// an ordered sequence of [`Segment`]s
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct RouteSpec {
-    source: Option<SmartString>,
+    source: Option<CompactString>,
     segments: Vec<Segment>,
     min_length: usize,
     dot_count: usize,
@@ -94,7 +94,6 @@ impl RouteSpec {
                             let index = memchr::memchr2(b'.', b'/', path_str.as_bytes())?;
                             #[cfg(not(feature = "memchr"))]
                             let index = path_str.find(['.', '/'])?;
-
                             if path_str.chars().nth(index) == Some('.') {
                                 captures.push(&path_str[..index]);
                                 &path_str[index..] // we leave the dot so it can be matched by the Segment::Dot
@@ -229,7 +228,6 @@ impl FromStr for RouteSpec {
 
         #[cfg(not(feature = "memchr"))]
         let index_iter = source_trimmed.match_indices(['.', '/']).map(|(i, _)| i);
-
         let segments = index_iter
             .chain(iter::once_with(|| source_trimmed.len()))
             .try_fold(vec![], |mut acc, index| {
@@ -256,9 +254,9 @@ impl FromStr for RouteSpec {
                     (Some(':'), 1) => {
                         return Err(String::from("params must be named"));
                     }
-                    (Some(':'), _) => Some(Segment::Param(SmartString::from(&section[1..]))),
+                    (Some(':'), _) => Some(Segment::Param(Text::from(&section[1..]))),
                     (None, 0) => None,
-                    (_, _) => Some(Segment::Exact(SmartString::from(section))),
+                    (_, _) => Some(Segment::Exact(Text::from(section))),
                 };
 
                 if first_char == Some('.') {
@@ -280,7 +278,7 @@ impl FromStr for RouteSpec {
             })?;
 
         Ok(Self {
-            source: Some(SmartString::from(source)),
+            source: Some(CompactString::from(source)),
             segments,
             min_length: 0,
             dot_count: 0,

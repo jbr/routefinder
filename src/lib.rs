@@ -40,6 +40,8 @@
 //! Check out [`Router`] for a good starting place
 //!
 
+mod compact_cow;
+
 mod captures;
 pub use captures::{Capture, Captures};
 
@@ -50,7 +52,7 @@ mod router;
 pub use router::Router;
 
 mod segment;
-pub use segment::Segment;
+pub use segment::{Segment, Text};
 
 mod reverse_match;
 pub use reverse_match::ReverseMatch;
