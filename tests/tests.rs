@@ -20,7 +20,7 @@ fn it_works() -> Result {
     ])?;
 
     assert_eq!(
-        &format!("{:#?}", &router),
+        &format!("{router:#?}"),
         r#"{
     /hello,
     /hey/earth,

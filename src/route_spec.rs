@@ -94,7 +94,7 @@ impl RouteSpec {
                             let index = memchr::memchr2(b'.', b'/', path_str.as_bytes())?;
                             #[cfg(not(feature = "memchr"))]
                             let index = path_str.find(['.', '/'])?;
-                            if path_str.chars().nth(index) == Some('.') {
+                            if path_str.as_bytes()[index] == b'.' {
                                 captures.push(&path_str[..index]);
                                 &path_str[index..] // we leave the dot so it can be matched by the Segment::Dot
                             } else {
@@ -118,17 +118,13 @@ impl RouteSpec {
                     }
                 },
 
-                Segment::Slash => {
-                    match (
-                        path_str.chars().take_while(|c| *c == '/').count(),
-                        peek.peek(),
-                    ) {
-                        (0, None) => path_str,
-                        (0, Some(Segment::Wildcard)) => path_str,
-                        (n, Some(_)) => &path_str[n..],
-                        _ => return None,
-                    }
-                }
+                // Trimming the path removes a trailing slash, but must not
+                // make an internal slash optional before a nonempty suffix.
+                Segment::Slash => match path_str.as_bytes().first() {
+                    Some(b'/') => path_str.trim_start_matches('/'),
+                    None if matches!(peek.peek(), None | Some(Segment::Wildcard)) => path_str,
+                    _ => return None,
+                },
 
                 Segment::Dot => match path_str.chars().next() {
                     Some('.') => &path_str[1..],
@@ -234,7 +230,7 @@ impl FromStr for RouteSpec {
                 let first_char = if last_index == 0 {
                     None
                 } else {
-                    source_trimmed.chars().nth(last_index - 1)
+                    source_trimmed.as_bytes().get(last_index - 1).copied()
                 };
 
                 let section = &source_trimmed[last_index..index];
@@ -259,7 +255,7 @@ impl FromStr for RouteSpec {
                     (_, _) => Some(Segment::Exact(Text::from(section))),
                 };
 
-                if first_char == Some('.') {
+                if first_char == Some(b'.') {
                     if let Some(Segment::Exact(s)) = acc.last_mut() {
                         s.push('.');
                     } else {
@@ -268,7 +264,7 @@ impl FromStr for RouteSpec {
                 }
 
                 if let Some(segment) = segment {
-                    if first_char == Some('/') {
+                    if first_char == Some(b'/') {
                         acc.push(Segment::Slash);
                     }
                     acc.push(segment);

@@ -4,13 +4,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.1] - 2026-11-06
+
+### Fixed
+- `/files/*` incorrectly matched `/filesomething` since 0.6.0, which has been yanked.
+- Preserve separators after Unicode text in route specs and correctly match Unicode
+  parameters followed by a dot.
+
+## [0.6.0] - 2026-11-01 [YANKED]
 
 ### Changed
 - **Breaking:** `Segment::Exact` and `Segment::Param` now hold an opaque `Text` type (derefs to
   `str`) instead of a `smartstring::SmartString`.
 - Replaced the unmaintained `smartstring` / `smartcow` dependencies (RUSTSEC-2026-0249) with
   `compact_str`.
+- a slash in the route spec consumes any nonzero number of slashes in the route
+
 
 ## [0.5.4](https://github.com/jbr/routefinder/compare/v0.5.3...v0.5.4) - 2024-02-01
 
