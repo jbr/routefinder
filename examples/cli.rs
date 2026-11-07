@@ -6,10 +6,8 @@ pub fn main() -> Result<(), String> {
     router.add(
         "/*",
         Box::new(|captures| {
-            format!(
-                "/{} did not have an explicit match",
-                captures.wildcard().unwrap_or_default()
-            )
+            let path = captures.wildcard().unwrap_or_default();
+            format!("/{path} did not have an explicit match",)
         }),
     )?;
 
@@ -33,24 +31,18 @@ pub fn main() -> Result<(), String> {
     let path = std::env::args().nth(1).unwrap_or_default();
 
     if let Some(m) = router.best_match(&path) {
-        println!(
-            "\n\ninput: {}\nbest match: {}\noutput: {}\n\n",
-            &path,
-            m.route(),
-            m(m.captures()),
-        );
+        let route = m.route();
+        let captures = m(m.captures());
+        println!("\n\ninput: {path}\nbest match: {route}\noutput: {captures}\n\n");
     }
 
-    println!(
-        "all routes that match {}, in order of decreasing precedence: {:#?}",
-        &path,
-        router
-            .matches(&path)
-            .iter()
-            .rev()
-            .map(|m| m.route())
-            .collect::<Vec<_>>()
-    );
+    let matches = router
+        .matches(&path)
+        .iter()
+        .map(|m| m.route())
+        .collect::<Vec<_>>();
+
+    println!("all routes that match {path}, in order of decreasing precedence: {matches:#?}");
 
     Ok(())
 }
